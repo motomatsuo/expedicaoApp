@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+:root {
+  --brand-primary: #980f0f;
+  --brand-primary-hover: #7f0d0d;
+  --brand-soft: #fef2f2;
+  --background-app: #f8fafc;
+  --background-surface: #ffffff;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-default: #e2e8f0;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-app: var(--background-app);
+  --color-surface: var(--background-surface);
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-border-default: var(--border-default);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-inter), Arial, sans-serif;
+  background: var(--background-app);
+  color: var(--text-primary);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2;
+}
+
+.card-surface {
+  @apply rounded-2xl border border-border-default bg-surface shadow-[0_8px_24px_rgba(15,23,42,0.08)];
+}

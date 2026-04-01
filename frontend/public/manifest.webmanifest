@@ -1,0 +1,16 @@
+{
+  "name": "Moto Matsuo Expedicao",
+  "short_name": "Expedicao",
+  "description": "WebApp da equipe de expedicao Moto Matsuo",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#980f0f",
+  "icons": [
+    {
+      "src": "/next.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
