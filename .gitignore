@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets (não versionar)
+.env
+.env.*
+!.env.example
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Logs e debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.cursor/
+
+# Test / coverage
+coverage/
+
+# TypeScript
+*.tsbuildinfo
+
+# NestJS (backend)
+backend/dist/
+
+# Next.js (frontend) — backup se rodar git da raiz
+frontend/.next/
+frontend/out/
