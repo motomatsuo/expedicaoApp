@@ -5,6 +5,7 @@ import { compareSync } from 'bcryptjs';
 import { UsersRepository } from '../users/users.repository';
 import { LoginDto } from './dto/login.dto';
 import {
+  PortalUser,
   PublicPortalUser,
   toPublicPortalUser,
 } from '../users/entities/portal-user.entity';
@@ -41,6 +42,8 @@ export class AuthService {
       throw new UnauthorizedException('Usuario inativo.');
     }
 
+    this.assertExpedicaoGroup(user);
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email_vend,
@@ -60,7 +63,17 @@ export class AuthService {
       return null;
     }
 
+    this.assertExpedicaoGroup(user);
+
     return toPublicPortalUser(user);
+  }
+
+  /** Portal expedição: apenas usuários com grupo contendo EXPEDICAO. */
+  private assertExpedicaoGroup(user: PortalUser): void {
+    const grupo = user.grupo;
+    if (!Array.isArray(grupo) || !grupo.includes('EXPEDICAO')) {
+      throw new UnauthorizedException('Credenciais invalidas.');
+    }
   }
 
   private verifyPassword(
