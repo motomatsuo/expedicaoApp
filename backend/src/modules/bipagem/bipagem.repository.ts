@@ -23,6 +23,29 @@ export class BipagemRepository {
     return queryResult.data ?? [];
   }
 
+  async findByFilters(input: {
+    from: string;
+    to: string;
+    plataforma?: BipagemRecord['plataforma'];
+  }): Promise<BipagemRecord[]> {
+    const query = this.supabaseService.homologClient
+      .from('db_expedicao_bipagem')
+      .select('*')
+      .gte('created_at', input.from)
+      .lte('created_at', `${input.to}T23:59:59.999Z`)
+      .order('created_at', { ascending: false });
+
+    const finalQuery = input.plataforma ? query.eq('plataforma', input.plataforma) : query;
+
+    const queryResult = await finalQuery;
+
+    if (queryResult.error) {
+      throw new InternalServerErrorException('Falha ao consultar bipagens para exportacao.');
+    }
+
+    return queryResult.data ?? [];
+  }
+
   async create(input: {
     codigo: string;
     atendente: string;

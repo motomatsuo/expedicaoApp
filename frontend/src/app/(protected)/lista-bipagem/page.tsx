@@ -15,7 +15,10 @@ import {
   type BipagemModeId,
   type BipagemScanRow,
 } from '@/features/bipagem/bipagem-catalog';
-import { BIPAGEM_LIST_BROADCAST_CHANNEL } from '@/features/bipagem/bipagem-list-sync';
+import {
+  BIPAGEM_LIST_BROADCAST_CHANNEL,
+  notifyBipagemListChanged,
+} from '@/features/bipagem/bipagem-list-sync';
 import { ROUTES } from '@/shared/constants/routes';
 import {
   dateKeyFromIso,
@@ -37,46 +40,48 @@ const LISTA_METRIC_TITLE_BY_MODE: Record<BipagemModeId, string> = {
 };
 
 type MetricAccent = BipagemModeId | 'total_shopee' | 'total_meli';
+type ExportScope = 'mode' | 'all';
 
+/** Cartões neutros com faixa lateral discreta para distinguir sem cores chapadas. */
 const METRIC_ACCENTS: Record<
   MetricAccent,
   { box: string; title: string; value: string; skeleton: string }
 > = {
   mercado_livre_comum: {
-    box: 'border-amber-700 bg-amber-50',
-    title: 'text-amber-950',
-    value: 'text-amber-900',
-    skeleton: 'border-amber-200 bg-amber-100/80',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-stone-500',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-stone-300',
   },
   mercado_livre_flex: {
-    box: 'border-sky-700 bg-sky-50',
-    title: 'text-sky-950',
-    value: 'text-sky-900',
-    skeleton: 'border-sky-200 bg-sky-100/80',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-slate-500',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-slate-300',
   },
   shopee_comum: {
-    box: 'border-orange-600 bg-orange-50',
-    title: 'text-orange-950',
-    value: 'text-orange-900',
-    skeleton: 'border-orange-200 bg-orange-100/80',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-orange-400',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-orange-200',
   },
   shopee_entrega_rapida: {
-    box: 'border-violet-700 bg-violet-50',
-    title: 'text-violet-950',
-    value: 'text-violet-900',
-    skeleton: 'border-violet-200 bg-violet-100/80',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-violet-400',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-violet-200',
   },
   total_shopee: {
-    box: 'border-orange-800 bg-orange-100',
-    title: 'text-orange-950',
-    value: 'text-orange-950',
-    skeleton: 'border-orange-300 bg-orange-100/90',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-[#980F0F]',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-red-200',
   },
   total_meli: {
-    box: 'border-indigo-800 bg-indigo-50',
-    title: 'text-indigo-950',
-    value: 'text-indigo-900',
-    skeleton: 'border-indigo-200 bg-indigo-100/80',
+    box: 'border border-gray-200 bg-white shadow-sm border-l-[3px] border-l-blue-600',
+    title: 'text-gray-600',
+    value: 'text-gray-900',
+    skeleton: 'border border-gray-200 bg-gray-50/90 border-l-[3px] border-l-blue-200',
   },
 };
 
@@ -120,6 +125,19 @@ function IconX({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
+function IconTrash({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+      />
     </svg>
   );
 }
@@ -182,7 +200,7 @@ function MetricCard({
   return (
     <div
       className={[
-        'flex shrink-0 flex-col justify-center rounded-lg border-2 px-2 py-1.5 shadow-sm sm:px-2.5 sm:py-2',
+        'flex shrink-0 flex-col justify-center rounded-lg px-2 py-1.5 sm:px-2.5 sm:py-2',
         palette.box,
         wide ? 'w-[7rem] sm:w-[7.75rem]' : 'w-[5.75rem] sm:w-[6.75rem]',
       ].join(' ')}
@@ -271,6 +289,196 @@ function FilterMenu({
           <div className="rounded-lg border border-gray-200 bg-white py-2 shadow-lg">{children}</div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function ExportModal({
+  open,
+  onClose,
+  onConfirm,
+  minDateKey,
+  maxDateKey,
+  initialDateKey,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: (options: { scope: ExportScope; from: string; to: string; modeId?: BipagemModeId }) => void;
+  minDateKey: string;
+  maxDateKey: string;
+  initialDateKey: string;
+}) {
+  const [scope, setScope] = useState<ExportScope>('all');
+  const [from, setFrom] = useState(initialDateKey);
+  const [to, setTo] = useState(initialDateKey);
+   const [modeId, setModeId] = useState<BipagemModeId | ''>('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setScope('all');
+      setFrom(initialDateKey);
+      setTo(initialDateKey);
+      setModeId('');
+      setError('');
+    }
+  }, [open, initialDateKey]);
+
+  if (!open) return null;
+
+  function handleConfirm() {
+    if (!from || !to) {
+      setError('Preencha as duas datas para exportar.');
+      return;
+    }
+    if (from > to) {
+      setError('A data inicial nao pode ser maior que a final.');
+      return;
+    }
+    if (scope === 'mode' && !modeId) {
+      setError('Selecione o modo de bipagem para exportar.');
+      return;
+    }
+    setError('');
+    onConfirm({ scope, from, to, modeId: scope === 'mode' ? (modeId as BipagemModeId) : undefined });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:rounded-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lista-exportar-titulo"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-b border-gray-100 p-4 sm:p-5">
+          <h2 id="lista-exportar-titulo" className="text-base font-semibold text-gray-900">
+            Exportar bipagens
+          </h2>
+          <p className="mt-1 text-sm text-gray-600">
+            Escolha o que deseja exportar e o intervalo de datas.
+          </p>
+        </div>
+        <div className="space-y-4 p-4 sm:p-5">
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-gray-800">Escopo</legend>
+            <div className="mt-1 space-y-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="radio"
+                  name="lista-export-scope"
+                  value="all"
+                  checked={scope === 'all'}
+                  onChange={() => setScope('all')}
+                  className="h-4 w-4 text-[#980F0F] focus:ring-[#980F0F]"
+                />
+                <span>Todos os modos de bipagem</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="radio"
+                  name="lista-export-scope"
+                  value="mode"
+                  checked={scope === 'mode'}
+                  onChange={() => setScope('mode')}
+                  className="h-4 w-4 text-[#980F0F] focus:ring-[#980F0F]"
+                />
+                <span>Apenas por modo de bipagem</span>
+              </label>
+            </div>
+          </fieldset>
+
+          {scope === 'mode' ? (
+            <div className="space-y-2">
+              <label
+                htmlFor="lista-export-mode"
+                className="block text-sm font-medium text-gray-800"
+              >
+                Modo de bipagem
+              </label>
+              <select
+                id="lista-export-mode"
+                value={modeId}
+                onChange={(e) => setModeId(e.target.value as BipagemModeId | '')}
+                className="focus-ring w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 shadow-sm"
+              >
+                <option value="">Selecione um modo</option>
+                {BIPAGEM_MODES.map((mode) => (
+                  <option key={mode.id} value={mode.id}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-gray-800">Intervalo de datas</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="lista-export-from"
+                  className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
+                  De
+                </label>
+                <input
+                  id="lista-export-from"
+                  type="date"
+                  min={minDateKey}
+                  max={maxDateKey}
+                  value={from}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="focus-ring w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 shadow-sm"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="lista-export-to"
+                  className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500"
+                >
+                  Ate
+                </label>
+                <input
+                  id="lista-export-to"
+                  type="date"
+                  min={minDateKey}
+                  max={maxDateKey}
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="focus-ring w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 shadow-sm"
+                />
+              </div>
+            </div>
+            {error ? (
+              <p className="text-sm text-red-600" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 sm:w-auto sm:min-w-[7rem]"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="focus-ring h-10 w-full rounded-lg bg-[#980F0F] text-sm font-medium text-white transition-colors hover:bg-[#7b0c0c] sm:w-auto sm:min-w-[7rem]"
+          >
+            Exportar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -422,6 +630,9 @@ export default function ListaBipagemPage() {
   const [filterModelLabel, setFilterModelLabel] = useState<string | null>(null);
   const [filterUserName, setFilterUserName] = useState<string | null>(null);
   const [openFilterMenu, setOpenFilterMenu] = useState<FilterMenuKind | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; code: string } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const lastFiveKeys = useMemo(() => getLastWeekdayKeys(5, new Date()), []);
 
@@ -503,6 +714,33 @@ export default function ListaBipagemPage() {
     return () => channel.close();
   }, [load]);
 
+  const performDeleteBipagem = useCallback(
+    async (id: number): Promise<boolean> => {
+      setDeletingId(id);
+      setError('');
+      try {
+        const response = await fetch(`${apiUrl}/bipagem/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error('Falha ao excluir bipagem.');
+        }
+
+        setItems((previous) => previous.filter((row) => row.id !== id));
+        notifyBipagemListChanged();
+        return true;
+      } catch {
+        setError('Nao foi possivel excluir a bipagem.');
+        return false;
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [apiUrl],
+  );
+
   const dayItems = useMemo(
     () => items.filter((row) => row.dateKey === selectedDateKey),
     [items, selectedDateKey],
@@ -539,8 +777,38 @@ export default function ListaBipagemPage() {
   const totalMercadoLivre =
     (countsByModeId.mercado_livre_comum ?? 0) + (countsByModeId.mercado_livre_flex ?? 0);
 
+  const handleConfirmExport = useCallback(
+    (options: { scope: ExportScope; from: string; to: string; modeId?: BipagemModeId }) => {
+      const { scope, from, to, modeId } = options;
+      const params = new URLSearchParams();
+      params.set('from', from);
+      params.set('to', to);
+      params.set('scope', scope);
+      if (scope === 'mode' && modeId) {
+        params.set('modeId', modeId);
+      }
+
+      const url = `${apiUrl}/bipagem/export?${params.toString()}`;
+
+      if (typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      }
+
+      setExportOpen(false);
+    },
+    [apiUrl],
+  );
+
   return (
     <section className="relative mx-auto max-w-7xl pb-28 lg:pb-8">
+      <ExportModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        onConfirm={handleConfirmExport}
+        minDateKey={minDateKey}
+        maxDateKey={maxDateKey}
+        initialDateKey={selectedDateKey}
+      />
       <OlderDateCalendarModal
         open={calendarOpen}
         onClose={() => setCalendarOpen(false)}
@@ -548,6 +816,59 @@ export default function ListaBipagemPage() {
         maxDateKey={maxDateKey}
         minDateKey={minDateKey}
       />
+
+      {confirmDelete ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+          onClick={() => setConfirmDelete(null)}
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:rounded-xl"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="lista-excluir-titulo"
+            aria-describedby="lista-excluir-desc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-gray-100 p-4 sm:p-5">
+              <h2 id="lista-excluir-titulo" className="text-base font-semibold text-gray-900">
+                Excluir bipagem?
+              </h2>
+              <p id="lista-excluir-desc" className="mt-2 text-sm text-gray-600">
+                Esta acao nao pode ser desfeita. Confirme a exclusao do codigo:
+              </p>
+              <p className="mt-2 break-all rounded-lg bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900">
+                {confirmDelete.code}
+              </p>
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                disabled={deletingId !== null}
+                className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 sm:w-auto sm:min-w-[7rem]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const target = confirmDelete;
+                  void (async () => {
+                    const ok = await performDeleteBipagem(target.id);
+                    if (ok) setConfirmDelete(null);
+                  })();
+                }}
+                disabled={deletingId !== null}
+                className="focus-ring h-10 w-full rounded-lg bg-red-600 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[7rem]"
+              >
+                {deletingId !== null ? 'Excluindo...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
         <div className="min-w-0 flex-1">
@@ -579,20 +900,20 @@ export default function ListaBipagemPage() {
                     <div
                       key={mode.id}
                       className={[
-                        'h-[3.35rem] w-[5.75rem] shrink-0 animate-pulse rounded-lg border-2 sm:h-[3.6rem] sm:w-[6.75rem]',
+                        'h-[3.35rem] w-[5.75rem] shrink-0 animate-pulse rounded-lg sm:h-[3.6rem] sm:w-[6.75rem]',
                         METRIC_ACCENTS[mode.id].skeleton,
                       ].join(' ')}
                     />
                   ))}
                   <div
                     className={[
-                      'h-[3.35rem] w-[7rem] shrink-0 animate-pulse rounded-lg border-2 sm:h-[3.6rem] sm:w-[7.75rem]',
+                      'h-[3.35rem] w-[7rem] shrink-0 animate-pulse rounded-lg sm:h-[3.6rem] sm:w-[7.75rem]',
                       METRIC_ACCENTS.total_shopee.skeleton,
                     ].join(' ')}
                   />
                   <div
                     className={[
-                      'h-[3.35rem] w-[7rem] shrink-0 animate-pulse rounded-lg border-2 sm:h-[3.6rem] sm:w-[7.75rem]',
+                      'h-[3.35rem] w-[7rem] shrink-0 animate-pulse rounded-lg sm:h-[3.6rem] sm:w-[7.75rem]',
                       METRIC_ACCENTS.total_meli.skeleton,
                     ].join(' ')}
                   />
@@ -731,11 +1052,10 @@ export default function ListaBipagemPage() {
 
               <button
                 type="button"
-                onClick={() => void load({ silent: false })}
-                disabled={loading}
+                onClick={() => setExportOpen(true)}
                 className="focus-ring inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-800 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {loading ? 'Atualizando...' : 'Atualizar'}
+                Exportar
               </button>
             </div>
           </div>
@@ -762,13 +1082,16 @@ export default function ListaBipagemPage() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
+                <table className="w-full min-w-[680px] text-left text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/90">
                       <th className="px-4 py-3 font-semibold text-gray-900">Codigo</th>
                       <th className="px-4 py-3 font-semibold text-gray-900">Modelo</th>
                       <th className="px-4 py-3 font-semibold text-gray-900">Data e hora</th>
                       <th className="px-4 py-3 font-semibold text-gray-900">Usuario</th>
+                      <th className="w-14 px-2 py-3 text-right font-semibold text-gray-900">
+                        <span className="sr-only">Excluir</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -783,6 +1106,22 @@ export default function ListaBipagemPage() {
                         <td className="whitespace-nowrap px-4 py-3 text-gray-700">{row.modeLabel}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-gray-600">{row.scannedAt}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-gray-600">{row.userName}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-right align-middle">
+                          {typeof row.id === 'number' ? (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDelete({ id: row.id!, code: row.code })}
+                              disabled={deletingId === row.id}
+                              title="Excluir bipagem"
+                              aria-label={`Excluir bipagem ${row.code}`}
+                              className="focus-ring inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              <IconTrash className="h-5 w-5" />
+                            </button>
+                          ) : (
+                            <span className="inline-block w-9" aria-hidden />
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
