@@ -3,51 +3,16 @@
 import { BrowserMultiFormatReader } from '@zxing/browser';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
-
-type BipagemModeId =
-  | 'mercado_livre_comum'
-  | 'mercado_livre_flex'
-  | 'shopee_comum'
-  | 'shopee_entrega_rapida';
-
-type BipagemMode = {
-  id: BipagemModeId;
-  label: string;
-  platform: 'mercado_livre' | 'shopee';
-};
+import {
+  BIPAGEM_MODES,
+  mapApiBipagemToScanRow,
+  type BipagemMode,
+  type BipagemModeId,
+  type BipagemScanRow,
+} from '@/features/bipagem/bipagem-catalog';
+import { notifyBipagemListChanged } from '@/features/bipagem/bipagem-list-sync';
 
 type SoundProfileId = 'digital' | 'alerta' | 'supermercado';
-
-const BIPAGEM_MODES: BipagemMode[] = [
-  {
-    id: 'mercado_livre_comum',
-    label: 'Mercado Livre comum',
-    platform: 'mercado_livre',
-  },
-  {
-    id: 'mercado_livre_flex',
-    label: 'Mercado Livre Flex',
-    platform: 'mercado_livre',
-  },
-  {
-    id: 'shopee_comum',
-    label: 'Shopee comum',
-    platform: 'shopee',
-  },
-  {
-    id: 'shopee_entrega_rapida',
-    label: 'Shopee Entrega Rapida',
-    platform: 'shopee',
-  },
-];
-
-type ScannedCodeItem = {
-  id?: number;
-  code: string;
-  scannedAt: string;
-  userName: string;
-  modeLabel: string;
-};
 
 function IconBipagemFooter({ className }: { className?: string }) {
   return (
@@ -103,7 +68,7 @@ export default function BipagemPage() {
   const lastHandledRef = useRef<{ code: string; ts: number }>({ code: '', ts: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
   const [selectedMode, setSelectedMode] = useState<BipagemModeId | null>(null);
-  const [scannedCodes, setScannedCodes] = useState<ScannedCodeItem[]>([]);
+  const [scannedCodes, setScannedCodes] = useState<BipagemScanRow[]>([]);
   const [currentUserName, setCurrentUserName] = useState<string>('Usuario');
   const [pendingMercadoLivreCode, setPendingMercadoLivreCode] = useState<string | null>(null);
   const [pendingShopeeCode, setPendingShopeeCode] = useState<string | null>(null);
@@ -175,11 +140,12 @@ export default function BipagemPage() {
           throw new Error('Resposta invalida ao salvar bipagem.');
         }
 
-        setScannedCodes((previous) => [mapApiItemToScannedCode(item), ...previous]);
+        setScannedCodes((previous) => [mapApiBipagemToScanRow(item), ...previous]);
         setError('');
         setSuccessMessage(`Leitura valida para ${mode.label}.`);
         setStatus('success');
         playBeep(audioContextRef, 'alerta');
+        notifyBipagemListChanged();
       } catch {
         setError('Nao foi possivel salvar a bipagem no servidor.');
         setSuccessMessage('');
@@ -321,7 +287,7 @@ export default function BipagemPage() {
           }>;
         };
 
-        setScannedCodes((data.items ?? []).map(mapApiItemToScannedCode));
+        setScannedCodes((data.items ?? []).map(mapApiBipagemToScanRow));
       } catch {
         // Mantem lista local vazia em caso de erro.
       }
@@ -361,7 +327,9 @@ export default function BipagemPage() {
             credentials: 'include',
           }),
         ),
-      );
+      ).then(() => {
+        notifyBipagemListChanged();
+      });
     }
 
     setScannedCodes([]);
@@ -398,7 +366,7 @@ export default function BipagemPage() {
     setPendingShopeeCode(null);
   }
 
-  function deleteScan(scan: ScannedCodeItem) {
+  function deleteScan(scan: BipagemScanRow) {
     if (typeof scan.id !== 'number') {
       setScannedCodes((previous) =>
         previous.filter((item) => item.scannedAt !== scan.scannedAt || item.code !== scan.code),
@@ -418,6 +386,7 @@ export default function BipagemPage() {
         }
 
         setScannedCodes((previous) => previous.filter((item) => item.id !== scan.id));
+        notifyBipagemListChanged();
       } catch {
         setError('Nao foi possivel excluir a bipagem.');
       }
@@ -870,24 +839,6 @@ function normalizeScannedCode(code: string, platform: BipagemMode['platform']): 
   }
 
   return code;
-}
-
-function mapApiItemToScannedCode(item: {
-  id: number;
-  created_at: string;
-  plataforma: string;
-  atendente: string;
-  codigo: string;
-}): ScannedCodeItem {
-  const matchedMode = BIPAGEM_MODES.find((mode) => mode.id === item.plataforma);
-
-  return {
-    id: item.id,
-    code: item.codigo,
-    scannedAt: new Date(item.created_at).toLocaleString('pt-BR'),
-    userName: item.atendente || 'Usuario',
-    modeLabel: matchedMode?.label ?? item.plataforma,
-  };
 }
 
 function playBeep(

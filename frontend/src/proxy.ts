@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ROUTES } from '@/shared/constants/routes';
 
-const protectedPaths = [ROUTES.dashboard, ROUTES.bipagem];
+const protectedPaths = [ROUTES.dashboard, ROUTES.bipagem, ROUTES.listaBipagem];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,5 +19,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/login', '/dashboard/:path*', '/bipagem/:path*'],
+  matcher: ['/login', '/dashboard/:path*', '/bipagem/:path*', '/lista-bipagem'],
 };

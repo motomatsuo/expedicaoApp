@@ -14,16 +14,45 @@ type NavItem = {
   href: string;
   label: string;
   title: string;
-  icon: 'dashboard' | 'bipagem';
+  icon: 'dashboard' | 'bipagem' | 'listaBipagem';
 };
 
 const NAV_ITEMS: NavItem[] = [
   { href: ROUTES.dashboard, label: 'Dashboard', title: 'Dashboard', icon: 'dashboard' },
   { href: ROUTES.bipagem, label: 'Bipagem', title: 'Bipagem', icon: 'bipagem' },
+  {
+    href: ROUTES.listaBipagem,
+    label: 'Lista bipagem',
+    title: 'Lista bipagem',
+    icon: 'listaBipagem',
+  },
 ];
 
 function NavIcon({ name }: { name: NavItem['icon'] }) {
   const cls = 'h-6 w-6 shrink-0';
+  if (name === 'listaBipagem') {
+    return (
+      <svg
+        className={cls}
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <line x1="8" y1="6" x2="21" y2="6" />
+        <line x1="8" y1="12" x2="21" y2="12" />
+        <line x1="8" y1="18" x2="21" y2="18" />
+        <line x1="3" y1="6" x2="3.01" y2="6" />
+        <line x1="3" y1="12" x2="3.01" y2="12" />
+        <line x1="3" y1="18" x2="3.01" y2="18" />
+      </svg>
+    );
+  }
   if (name === 'dashboard') {
     return (
       <svg
@@ -88,8 +117,13 @@ export function AppShell({ children }: AppShellProps) {
   const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const pageTitle =
-    pathname.startsWith(ROUTES.bipagem) ? 'Bipagem' : pathname.startsWith(ROUTES.dashboard) ? 'Dashboard' : 'Expedição';
+  const pageTitle = pathname.startsWith(ROUTES.listaBipagem)
+    ? 'Lista bipagem'
+    : pathname.startsWith(ROUTES.bipagem)
+      ? 'Bipagem'
+      : pathname.startsWith(ROUTES.dashboard)
+        ? 'Dashboard'
+        : 'Expedição';
 
   useEffect(() => {
     async function loadUser() {
