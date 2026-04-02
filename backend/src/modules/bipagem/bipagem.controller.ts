@@ -3,26 +3,39 @@ import {
   Controller,
   Delete,
   Get,
+  MessageEvent,
   Param,
   ParseIntPipe,
   Post,
   Query,
   Res,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BipagemService } from './bipagem.service';
+import { BipagemSseService } from './bipagem-sse.service';
 import { CreateBipagemDto } from './dto/create-bipagem.dto';
 import type { Response } from 'express';
+import type { Observable } from 'rxjs';
 
 @UseGuards(JwtAuthGuard)
 @Controller('bipagem')
 export class BipagemController {
-  constructor(private readonly bipagemService: BipagemService) {}
+  constructor(
+    private readonly bipagemService: BipagemService,
+    private readonly bipagemSseService: BipagemSseService,
+  ) {}
 
   @Get()
   async list() {
     return { items: await this.bipagemService.list() };
+  }
+
+  /** Push em tempo real para todas as telas (ex.: celular bipando, desktop na lista). */
+  @Sse('stream')
+  stream(): Observable<MessageEvent> {
+    return this.bipagemSseService.stream();
   }
 
   @Post()

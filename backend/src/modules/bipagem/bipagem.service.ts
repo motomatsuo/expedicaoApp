@@ -2,22 +2,29 @@ import { Injectable } from '@nestjs/common';
 import { BipagemRepository } from './bipagem.repository';
 import { BipagemRecord } from './entities/bipagem.entity';
 import { CreateBipagemDto } from './dto/create-bipagem.dto';
+import { BipagemSseService } from './bipagem-sse.service';
 import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class BipagemService {
-  constructor(private readonly bipagemRepository: BipagemRepository) {}
+  constructor(
+    private readonly bipagemRepository: BipagemRepository,
+    private readonly bipagemSseService: BipagemSseService,
+  ) {}
 
   async list(): Promise<BipagemRecord[]> {
     return this.bipagemRepository.findAll();
   }
 
   async create(input: CreateBipagemDto): Promise<BipagemRecord> {
-    return this.bipagemRepository.create(input);
+    const record = await this.bipagemRepository.create(input);
+    this.bipagemSseService.emitListChanged();
+    return record;
   }
 
   async delete(id: number): Promise<void> {
     await this.bipagemRepository.deleteById(id);
+    this.bipagemSseService.emitListChanged();
   }
 
   async exportToXlsx(options: {

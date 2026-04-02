@@ -666,6 +666,7 @@ export default function ListaBipagemPage() {
       const response = await fetch(`${apiUrl}/bipagem`, {
         method: 'GET',
         credentials: 'include',
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -713,6 +714,42 @@ export default function ListaBipagemPage() {
     channel.onmessage = () => void load({ silent: true });
     return () => channel.close();
   }, [load]);
+
+  /** Push do servidor: atualiza na hora entre dispositivos (ex.: bip no celular, lista no desktop). */
+  useEffect(() => {
+    if (pathname !== ROUTES.listaBipagem) {
+      return;
+    }
+    if (typeof EventSource === 'undefined') {
+      return;
+    }
+    const url = `${apiUrl}/bipagem/stream`;
+    const es = new EventSource(url, { withCredentials: true });
+    es.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data) as { type?: string };
+        if (data.type === 'bipagem-list-changed') {
+          void load({ silent: true });
+        }
+      } catch {
+        // ping ou payload invalido
+      }
+    };
+    return () => es.close();
+  }, [pathname, load, apiUrl]);
+
+  useEffect(() => {
+    if (pathname !== ROUTES.listaBipagem) {
+      return;
+    }
+    function onVisibility() {
+      if (document.visibilityState === 'visible') {
+        void load({ silent: true });
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [pathname, load]);
 
   const performDeleteBipagem = useCallback(
     async (id: number): Promise<boolean> => {

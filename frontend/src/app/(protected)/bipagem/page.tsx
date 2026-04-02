@@ -10,7 +10,10 @@ import {
   type BipagemModeId,
   type BipagemScanRow,
 } from '@/features/bipagem/bipagem-catalog';
-import { notifyBipagemListChanged } from '@/features/bipagem/bipagem-list-sync';
+import {
+  BIPAGEM_LIST_BROADCAST_CHANNEL,
+  notifyBipagemListChanged,
+} from '@/features/bipagem/bipagem-list-sync';
 
 type SoundProfileId = 'digital' | 'alerta' | 'supermercado';
 
@@ -59,6 +62,27 @@ function IconListaFooter({ className }: { className?: string }) {
       <line x1="3" y1="18" x2="3.01" y2="18" />
     </svg>
   );
+}
+
+/** Evita perder bipagens locais quando o GET inicial termina depois do POST (corrida de rede/cache). */
+function mergeBipagemRowsById(
+  serverItems: BipagemScanRow[],
+  previous: BipagemScanRow[],
+): BipagemScanRow[] {
+  const byId = new Map<number, BipagemScanRow>();
+  for (const row of serverItems) {
+    if (typeof row.id === 'number') {
+      byId.set(row.id, row);
+    }
+  }
+  for (const row of previous) {
+    if (typeof row.id === 'number' && !byId.has(row.id)) {
+      byId.set(row.id, row);
+    }
+  }
+  const merged = Array.from(byId.values());
+  merged.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+  return merged;
 }
 
 export default function BipagemPage() {
@@ -265,36 +289,66 @@ export default function BipagemPage() {
     };
   }, [pendingMercadoLivreCode, pendingShopeeCode, registerValidScan, selectedMode]);
 
-  useEffect(() => {
-    async function fetchScans() {
-      try {
-        const response = await fetch(`${apiUrl}/bipagem`, {
-          method: 'GET',
-          credentials: 'include',
-        });
+  const fetchScansFromServer = useCallback(async () => {
+    try {
+      const response = await fetch(`${apiUrl}/bipagem`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      });
 
-        if (!response.ok) {
-          return;
-        }
-
-        const data = (await response.json()) as {
-          items?: Array<{
-            id: number;
-            created_at: string;
-            plataforma: string;
-            atendente: string;
-            codigo: string;
-          }>;
-        };
-
-        setScannedCodes((data.items ?? []).map(mapApiBipagemToScanRow));
-      } catch {
-        // Mantem lista local vazia em caso de erro.
+      if (!response.ok) {
+        return;
       }
-    }
 
-    void fetchScans();
+      const data = (await response.json()) as {
+        items?: Array<{
+          id: number;
+          created_at: string;
+          plataforma: string;
+          atendente: string;
+          codigo: string;
+        }>;
+      };
+
+      const serverItems = (data.items ?? []).map(mapApiBipagemToScanRow);
+      setScannedCodes((previous) => mergeBipagemRowsById(serverItems, previous));
+    } catch {
+      // Mantem lista local em caso de erro.
+    }
   }, [apiUrl]);
+
+  useEffect(() => {
+    void fetchScansFromServer();
+  }, [fetchScansFromServer]);
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') {
+      return;
+    }
+    const channel = new BroadcastChannel(BIPAGEM_LIST_BROADCAST_CHANNEL);
+    channel.onmessage = () => void fetchScansFromServer();
+    return () => channel.close();
+  }, [fetchScansFromServer]);
+
+  useEffect(() => {
+    if (typeof EventSource === 'undefined') {
+      return;
+    }
+    const url = `${apiUrl}/bipagem/stream`;
+    const es = new EventSource(url, { withCredentials: true });
+    es.onmessage = (ev) => {
+      try {
+        const data = JSON.parse(ev.data) as { type?: string };
+        if (data.type === 'bipagem-list-changed') {
+          void fetchScansFromServer();
+        }
+      } catch {
+        // ping ou payload invalido
+      }
+    };
+    return () => es.close();
+  }, [apiUrl, fetchScansFromServer]);
 
   function handleSelectMode(modeId: BipagemModeId) {
     setSelectedMode(modeId);
