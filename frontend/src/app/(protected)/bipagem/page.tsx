@@ -49,6 +49,53 @@ type ScannedCodeItem = {
   modeLabel: string;
 };
 
+function IconBipagemFooter({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+      <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+      <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+      <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+      <path d="M7 12h6M12 7v10" />
+    </svg>
+  );
+}
+
+function IconListaFooter({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </svg>
+  );
+}
+
 export default function BipagemPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -56,7 +103,6 @@ export default function BipagemPage() {
   const lastHandledRef = useRef<{ code: string; ts: number }>({ code: '', ts: 0 });
   const audioContextRef = useRef<AudioContext | null>(null);
   const [selectedMode, setSelectedMode] = useState<BipagemModeId | null>(null);
-  const [lastCode, setLastCode] = useState<string>('');
   const [scannedCodes, setScannedCodes] = useState<ScannedCodeItem[]>([]);
   const [currentUserName, setCurrentUserName] = useState<string>('Usuario');
   const [pendingMercadoLivreCode, setPendingMercadoLivreCode] = useState<string | null>(null);
@@ -65,6 +111,18 @@ export default function BipagemPage() {
   const [popupMessage, setPopupMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'success'>('idle');
+  const [bipagemModalOpen, setBipagemModalOpen] = useState(false);
+  const [listaModalOpen, setListaModalOpen] = useState(false);
+
+  const openBipagemModal = useCallback(() => {
+    setListaModalOpen(false);
+    setBipagemModalOpen(true);
+  }, []);
+
+  const openListaModal = useCallback(() => {
+    setBipagemModalOpen(false);
+    setListaModalOpen(true);
+  }, []);
 
   const registerValidScan = useCallback(
     async (code: string, mode: BipagemMode) => {
@@ -117,7 +175,6 @@ export default function BipagemPage() {
           throw new Error('Resposta invalida ao salvar bipagem.');
         }
 
-        setLastCode(code);
         setScannedCodes((previous) => [mapApiItemToScannedCode(item), ...previous]);
         setError('');
         setSuccessMessage(`Leitura valida para ${mode.label}.`);
@@ -186,9 +243,6 @@ export default function BipagemPage() {
               const mode = BIPAGEM_MODES.find((item) => item.id === selectedMode) ?? null;
 
               if (!mode) {
-                setError('Selecione um modelo de bipagem antes de iniciar a leitura.');
-                setSuccessMessage('');
-                setStatus('idle');
                 return;
               }
 
@@ -281,6 +335,7 @@ export default function BipagemPage() {
     setError('');
     setSuccessMessage('');
     setStatus('idle');
+    setBipagemModalOpen(false);
   }
 
   function resetModeSelection() {
@@ -289,7 +344,6 @@ export default function BipagemPage() {
   }
 
   function clearRead() {
-    setLastCode('');
     setError('');
     setSuccessMessage('');
     setStatus('idle');
@@ -371,244 +425,375 @@ export default function BipagemPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-6xl">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
-        <div className="rounded-3xl border border-border-default bg-surface p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)] md:p-6">
-          <h2 className="text-xl font-semibold tracking-tight text-primary">Bipagem</h2>
-          <p className="mt-2 text-sm text-secondary">
-            Posicione o QR Code no centro da camera para leitura em tempo real.
-          </p>
-
-          {selectedMode ? (
-            <div className="mt-4 flex items-center justify-between rounded-2xl border border-border-default bg-app px-4 py-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
-                  Modo selecionado
-                </p>
-                <p className="mt-1 text-sm font-semibold text-primary">
-                  {BIPAGEM_MODES.find((mode) => mode.id === selectedMode)?.label}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={resetModeSelection}
-                className="focus-ring inline-flex h-10 items-center justify-center rounded-xl border border-border-default bg-white px-3 text-sm font-semibold text-primary transition hover:bg-slate-50"
-              >
-                Trocar modo
-              </button>
-            </div>
-          ) : null}
-
-          {selectedMode ? (
-            <div className="mt-4 overflow-hidden rounded-3xl border border-border-default bg-black">
-              <video ref={videoRef} className="h-[420px] w-full object-cover" muted playsInline />
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-border-default bg-app px-4 py-3">
-            <p className="text-sm font-medium text-primary">Status da camera</p>
+    <div className="relative flex min-h-0 flex-1 flex-col bg-white">
+      <div className="relative min-h-0 flex-1 bg-black">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 h-full w-full object-cover"
+          muted
+          playsInline
+        />
+        <div
+          className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center p-6"
+          aria-hidden
+        >
+          <div className="relative aspect-square w-[min(72vw,50dvh,20rem)] drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+            <span className="absolute left-0 top-0 h-10 w-10 rounded-tl-xl border-l-[3px] border-t-[3px] border-white" />
+            <span className="absolute right-0 top-0 h-10 w-10 rounded-tr-xl border-r-[3px] border-t-[3px] border-white" />
+            <span className="absolute bottom-0 left-0 h-10 w-10 rounded-bl-xl border-b-[3px] border-l-[3px] border-white" />
+            <span className="absolute bottom-0 right-0 h-10 w-10 rounded-br-xl border-b-[3px] border-r-[3px] border-white" />
+          </div>
+        </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] z-20 flex justify-center px-3"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="max-w-[calc(100vw-1.5rem)] rounded-full border border-white/35 bg-black/35 px-4 py-1.5 text-center text-xs font-medium text-white shadow-md backdrop-blur-sm sm:text-sm">
+            {selectedMode ? (
+              <span>
+                Modo:{' '}
+                <span className="font-semibold text-white">
+                  {BIPAGEM_MODES.find((m) => m.id === selectedMode)?.label}
+                </span>
+              </span>
+            ) : (
+              <span>Toque no icone de bipagem para escolher o modo</span>
+            )}
+            <span className="mx-2 text-white/40" aria-hidden>
+              |
+            </span>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={
                 status === 'success'
-                  ? 'bg-green-100 text-green-700'
+                  ? 'text-green-300'
                   : selectedMode
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-slate-200 text-slate-700'
-              }`}
+                    ? 'text-green-300'
+                    : 'text-white/70'
+              }
             >
               {status === 'success'
                 ? 'Leitura valida'
                 : selectedMode
-                  ? 'Pronto para bipar'
-                  : 'Selecione um modelo'}
+                  ? 'Pronto'
+                  : 'Aguardando modo'}
             </span>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-border-default bg-surface p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)] md:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-secondary">
-            Ultima leitura
-          </p>
-          <p className="mt-2 break-all text-sm font-medium text-primary md:text-base">
-            {lastCode || 'Nenhum QR Code lido ainda.'}
-          </p>
-
-          {error ? <p className="mt-3 text-sm text-red-700">{error}</p> : null}
-          {successMessage ? <p className="mt-3 text-sm text-green-700">{successMessage}</p> : null}
-
-          <div className="mt-6 rounded-2xl border border-border-default bg-app p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-secondary">
-                Codigos bipados
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={exportScansToXlsx}
-                  disabled={scannedCodes.length === 0}
-                  className="focus-ring rounded-lg bg-brand-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-brand-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Exportar
-                </button>
-                <button
-                  type="button"
-                  onClick={clearScannedList}
-                  className="focus-ring rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-slate-100"
-                >
-                  Limpar lista
-                </button>
-              </div>
-            </div>
-            <div className="max-h-56 overflow-y-auto rounded-xl bg-white p-2">
-              {scannedCodes.length > 0 ? (
-                <ul className="space-y-2">
-                  {scannedCodes.map((scan, index) => (
-                    <li
-                      key={scan.id ?? `${scan.code}-${scan.scannedAt}-${index}`}
-                      className="rounded-lg border border-border-default px-3 py-2"
-                    >
-                      <p className="break-all text-sm font-semibold text-primary">{scan.code}</p>
-                      <p className="mt-1 text-xs text-secondary">{scan.scannedAt}</p>
-                      <p className="text-xs text-secondary">{scan.modeLabel}</p>
-                      <p className="text-xs text-secondary">{scan.userName}</p>
-                      <button
-                        type="button"
-                        onClick={() => deleteScan(scan)}
-                        className="focus-ring mt-2 inline-flex h-8 items-center justify-center rounded-lg border border-border-default bg-white px-2 text-xs font-semibold text-primary transition hover:bg-slate-50"
-                      >
-                        Excluir
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="px-1 py-2 text-sm text-secondary">Nenhum codigo armazenado ainda.</p>
-              )}
-            </div>
           </div>
         </div>
       </div>
 
-      {!selectedMode ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-3xl border border-border-default bg-surface p-5 shadow-[0_16px_40px_rgba(15,23,42,0.22)] md:p-6">
-            <h3 className="text-lg font-semibold tracking-tight text-primary">
-              Selecione o modelo de bipagem
-            </h3>
-            <p className="mt-1 text-sm text-secondary">
-              Escolha uma opcao para iniciar a leitura da camera.
-            </p>
+      <footer className="relative z-30 w-full shrink-0 bg-white">
+        <nav
+          className="flex w-full items-stretch gap-1 rounded-t-2xl border-t border-gray-200/90 bg-white py-2 pl-3 pr-3 shadow-[0_-10px_40px_rgba(15,23,42,0.08)] sm:rounded-t-[1.35rem] sm:py-2.5 sm:pl-5 sm:pr-5 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-3"
+          aria-label="Ações de bipagem"
+        >
+          <button
+            type="button"
+            onClick={openBipagemModal}
+            aria-label="Modo de bipagem"
+            aria-pressed={bipagemModalOpen}
+            title="Modo de bipagem"
+            className={`focus-ring flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-200 sm:min-h-[3.5rem] sm:rounded-[0.625rem] ${
+              bipagemModalOpen
+                ? 'bg-[#980F0F]/10 text-[#980F0F] shadow-[inset_0_0_0_1px_rgba(152,15,15,0.18)]'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100'
+            }`}
+          >
+            <IconBipagemFooter className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
+            <span className="mt-0.5 text-[10px] font-semibold leading-tight sm:text-xs">Bipagem</span>
+          </button>
+          <span
+            className="my-2 w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-gray-200 to-transparent"
+            aria-hidden
+          />
+          <button
+            type="button"
+            onClick={openListaModal}
+            aria-label="Lista de bipagens"
+            aria-pressed={listaModalOpen}
+            title="Lista de bipagens"
+            className={`focus-ring flex min-h-[3.25rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-4 py-2 text-xs font-medium transition-all duration-200 sm:min-h-[3.5rem] sm:rounded-[0.625rem] ${
+              listaModalOpen
+                ? 'bg-[#980F0F]/10 text-[#980F0F] shadow-[inset_0_0_0_1px_rgba(152,15,15,0.18)]'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 active:bg-gray-100'
+            }`}
+          >
+            <IconListaFooter className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
+            <span className="mt-0.5 text-[10px] font-semibold leading-tight sm:text-xs">Lista</span>
+          </button>
+        </nav>
+      </footer>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              {BIPAGEM_MODES.map((mode) => (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => handleSelectMode(mode.id)}
-                  className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-border-default bg-white px-3 py-2 text-sm font-medium text-primary transition-all hover:bg-slate-50"
-                >
-                  {mode.label}
-                </button>
-              ))}
+      {bipagemModalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+          onClick={() => setBipagemModalOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[85dvh] sm:max-w-lg sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Modo de bipagem"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-5 sm:p-5">
+              <div
+                className={`mb-3 flex flex-wrap items-center gap-2 ${selectedMode ? 'justify-end' : ''}`}
+              >
+                {selectedMode ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetModeSelection();
+                    }}
+                    className="focus-ring rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 sm:text-sm"
+                  >
+                    Encerrar modo
+                  </button>
+                ) : (
+                  <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Escolha o modo
+                  </span>
+                )}
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2">
+                {BIPAGEM_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    onClick={() => handleSelectMode(mode.id)}
+                    className={`focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                      selectedMode === mode.id
+                        ? 'border-[#980F0F] bg-[#980F0F]/10 text-[#980F0F]'
+                        : 'border-gray-200 bg-gray-50 text-gray-800 hover:bg-gray-100'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={() => setBipagemModalOpen(false)}
+                className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {listaModalOpen ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+          onClick={() => setListaModalOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[85dvh] sm:max-w-lg sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Codigos bipados"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 pt-5 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  {scannedCodes.length === 0
+                    ? 'Nenhum codigo'
+                    : `${scannedCodes.length} codigo${scannedCodes.length === 1 ? '' : 's'}`}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={exportScansToXlsx}
+                    disabled={scannedCodes.length === 0}
+                    className="focus-ring rounded-lg bg-red-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                  >
+                    Exportar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearScannedList}
+                    className="focus-ring rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100 sm:text-sm"
+                  >
+                    Limpar lista
+                  </button>
+                </div>
+              </div>
+
+              {error ? (
+                <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+              ) : null}
+              {successMessage ? (
+                <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">{successMessage}</p>
+              ) : null}
+
+              <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50/80 p-2 sm:max-h-[min(50dvh,28rem)]">
+                {scannedCodes.length > 0 ? (
+                  <ul className="flex flex-col gap-2">
+                    {scannedCodes.map((scan, index) => (
+                      <li
+                        key={scan.id ?? `${scan.code}-${scan.scannedAt}-${index}`}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-2.5 shadow-sm"
+                      >
+                        <p className="break-all text-sm font-semibold text-gray-900">{scan.code}</p>
+                        <p className="mt-1 text-xs text-gray-500">{scan.scannedAt}</p>
+                        <p className="text-xs text-gray-500">{scan.modeLabel}</p>
+                        <p className="text-xs text-gray-500">{scan.userName}</p>
+                        <button
+                          type="button"
+                          onClick={() => deleteScan(scan)}
+                          className="focus-ring mt-2 inline-flex h-8 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-100"
+                        >
+                          Excluir
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="py-8 text-center text-sm text-gray-500">Nenhum codigo bipado ainda.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={() => setListaModalOpen(false)}
+                className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Fechar
+              </button>
             </div>
           </div>
         </div>
       ) : null}
 
       {pendingMercadoLivreCode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-border-default bg-surface p-5 shadow-[0_16px_40px_rgba(15,23,42,0.24)] md:p-6">
-            <h3 className="text-lg font-semibold tracking-tight text-primary">
-              Codigo de Mercado Livre detectado
-            </h3>
-            <p className="mt-2 text-sm text-secondary">
-              Voce estava em Shopee, mas esse codigo parece ser de Mercado Livre. Escolha o modelo
-              para confirmar a bipagem:
-            </p>
-
-            <div className="mt-4 grid gap-2">
+        <div
+          className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+          onClick={() => setPendingMercadoLivreCode(null)}
+          role="presentation"
+        >
+          <div
+            className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[85dvh] sm:max-w-lg sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Modo incorreto — confirmar Mercado Livre"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-5 sm:p-5">
+              <p className="rounded-lg bg-[#980F0F]/12 px-3 py-2.5 text-sm font-semibold text-[#980F0F]">
+                Modo incorreto
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                Este codigo nao corresponde ao modo selecionado. Escolha o modelo de Mercado Livre
+                para confirmar a bipagem.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => confirmMercadoLivreMode('mercado_livre_comum')}
+                  className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-[#980F0F]/35 bg-[#980F0F]/10 px-3 py-2.5 text-sm font-medium text-[#980F0F] transition-colors hover:bg-[#980F0F]/15"
+                >
+                  Mercado Livre comum
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmMercadoLivreMode('mercado_livre_flex')}
+                  className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-[#980F0F]/35 bg-[#980F0F]/10 px-3 py-2.5 text-sm font-medium text-[#980F0F] transition-colors hover:bg-[#980F0F]/15"
+                >
+                  Mercado Livre Flex
+                </button>
+              </div>
+            </div>
+            <div className="shrink-0 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
-                onClick={() => confirmMercadoLivreMode('mercado_livre_comum')}
-                className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-border-default bg-white px-3 py-2 text-sm font-semibold text-primary transition hover:bg-slate-50"
+                onClick={() => setPendingMercadoLivreCode(null)}
+                className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                Mercado Livre comum
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmMercadoLivreMode('mercado_livre_flex')}
-                className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-border-default bg-white px-3 py-2 text-sm font-semibold text-primary transition hover:bg-slate-50"
-              >
-                Mercado Livre Flex
+                Cancelar
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setPendingMercadoLivreCode(null)}
-              className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-white px-3 text-sm font-semibold text-secondary transition hover:bg-slate-50"
-            >
-              Cancelar
-            </button>
           </div>
         </div>
       ) : null}
 
       {pendingShopeeCode ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl border border-border-default bg-surface p-5 shadow-[0_16px_40px_rgba(15,23,42,0.24)] md:p-6">
-            <h3 className="text-lg font-semibold tracking-tight text-primary">
-              Codigo de Shopee detectado
-            </h3>
-            <p className="mt-2 text-sm text-secondary">
-              Voce estava em Mercado Livre, mas esse codigo comeca com BR. Escolha o modelo Shopee
-              para confirmar a bipagem:
-            </p>
-
-            <div className="mt-4 grid gap-2">
+        <div
+          className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 px-0 pb-0 backdrop-blur-sm sm:items-center sm:px-4 sm:pb-4"
+          onClick={() => setPendingShopeeCode(null)}
+          role="presentation"
+        >
+          <div
+            className="flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-gray-200 bg-white shadow-xl sm:max-h-[85dvh] sm:max-w-lg sm:rounded-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Modo incorreto — confirmar Shopee"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-5 sm:p-5">
+              <p className="rounded-lg bg-[#980F0F]/12 px-3 py-2.5 text-sm font-semibold text-[#980F0F]">
+                Modo incorreto
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">
+                Este codigo nao corresponde ao modo selecionado. Escolha o modelo Shopee para
+                confirmar a bipagem.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => confirmShopeeMode('shopee_comum')}
+                  className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-[#980F0F]/35 bg-[#980F0F]/10 px-3 py-2.5 text-sm font-medium text-[#980F0F] transition-colors hover:bg-[#980F0F]/15"
+                >
+                  Shopee comum
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmShopeeMode('shopee_entrega_rapida')}
+                  className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-[#980F0F]/35 bg-[#980F0F]/10 px-3 py-2.5 text-sm font-medium text-[#980F0F] transition-colors hover:bg-[#980F0F]/15"
+                >
+                  Shopee Entrega Rapida
+                </button>
+              </div>
+            </div>
+            <div className="shrink-0 border-t border-gray-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <button
                 type="button"
-                onClick={() => confirmShopeeMode('shopee_comum')}
-                className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-border-default bg-white px-3 py-2 text-sm font-semibold text-primary transition hover:bg-slate-50"
+                onClick={() => setPendingShopeeCode(null)}
+                className="focus-ring h-10 w-full rounded-lg border border-gray-200 bg-white text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                Shopee comum
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmShopeeMode('shopee_entrega_rapida')}
-                className="focus-ring inline-flex min-h-11 items-center justify-center rounded-xl border border-border-default bg-white px-3 py-2 text-sm font-semibold text-primary transition hover:bg-slate-50"
-              >
-                Shopee Entrega Rapida
+                Cancelar
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setPendingShopeeCode(null)}
-              className="focus-ring mt-3 inline-flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-white px-3 text-sm font-semibold text-secondary transition hover:bg-slate-50"
-            >
-              Cancelar
-            </button>
           </div>
         </div>
       ) : null}
 
       {popupMessage ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl border border-border-default bg-surface p-5 shadow-[0_16px_40px_rgba(15,23,42,0.24)] md:p-6">
-            <h3 className="text-lg font-semibold tracking-tight text-primary">Aviso</h3>
-            <p className="mt-2 text-sm text-secondary">{popupMessage}</p>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-900">Aviso</h3>
+            <p className="mt-2 text-sm text-gray-600">{popupMessage}</p>
             <button
               type="button"
               onClick={() => setPopupMessage('')}
-              className="focus-ring mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl border border-border-default bg-white px-3 text-sm font-semibold text-primary transition hover:bg-slate-50"
+              className="focus-ring mt-5 inline-flex h-10 w-full items-center justify-center rounded-lg bg-red-600 px-3 text-sm font-medium text-white transition-colors hover:bg-red-700"
             >
               Fechar
             </button>
           </div>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 
   function exportScansToXlsx() {
@@ -640,8 +825,7 @@ function validateCodeForMode(
     if (!startsWithBr) {
       return {
         valid: false,
-        message:
-          'Codigo invalido para Shopee. Se o codigo nao comeca com BR, selecione Mercado Livre.',
+        message: '',
         reason: 'shopee_received_mercado_livre',
       };
     }
@@ -652,8 +836,7 @@ function validateCodeForMode(
   if (startsWithBr) {
     return {
       valid: false,
-      message:
-        'Codigo com BR detectado. Para esse padrao, selecione Shopee antes de bipar.',
+      message: '',
       reason: 'mercado_livre_received_shopee',
     };
   }
@@ -661,8 +844,7 @@ function validateCodeForMode(
   if (!isOnlyNumbers) {
     return {
       valid: false,
-      message:
-        'Codigo invalido para Mercado Livre. O codigo deve conter apenas numeros.',
+      message: 'Este codigo nao corresponde ao modo Mercado Livre selecionado.',
     };
   }
 
