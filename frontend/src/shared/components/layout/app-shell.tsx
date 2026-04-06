@@ -263,15 +263,17 @@ export function AppShell({ children }: AppShellProps) {
                   <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
                 </svg>
               </button>
-              <h1 className="truncate text-lg font-bold text-gray-900 sm:text-2xl">{pageTitle}</h1>
+              <h1 className="hidden truncate text-lg font-bold text-gray-900 sm:block sm:text-2xl">
+                {pageTitle}
+              </h1>
               <span className="hidden text-sm text-gray-500 sm:inline">|</span>
               <span className="hidden truncate text-sm text-gray-600 sm:inline sm:text-base">
                 {userName ? `Bem-vindo, ${userName}` : 'Bem-vindo'}
               </span>
             </div>
 
-            <div className="relative mx-auto flex w-full min-w-0 max-w-2xl justify-center">
-              <div className="relative w-full max-w-xl">
+            <div className="relative mx-auto flex min-w-0 w-[min(42vw,13rem)] justify-center sm:w-full sm:max-w-2xl">
+              <div className="relative w-full max-w-[13rem] sm:max-w-xl">
                 <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
                   <svg
                     width="18"

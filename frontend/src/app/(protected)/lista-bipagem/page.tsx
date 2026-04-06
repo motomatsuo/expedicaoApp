@@ -30,6 +30,8 @@ import {
 } from './business-days';
 
 type ListaBipagemRow = BipagemScanRow & { dateKey: string };
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500] as const;
+const DEFAULT_PAGE_SIZE = 20;
 
 /** Títulos curtos apenas nos blocos de métrica da lista. */
 const LISTA_METRIC_TITLE_BY_MODE: Record<BipagemModeId, string> = {
@@ -633,6 +635,8 @@ export default function ListaBipagemPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; code: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   const lastFiveKeys = useMemo(() => getLastWeekdayKeys(5, new Date()), []);
 
@@ -795,6 +799,26 @@ export default function ListaBipagemPage() {
         .filter((row) => filterUserName === null || row.userName === filterUserName),
     [dayItems, filterModelLabel, filterUserName],
   );
+
+  const totalFilteredItems = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const pageStartIndex = (currentPageSafe - 1) * pageSize;
+  const pageEndIndex = pageStartIndex + pageSize;
+  const paginatedItems = useMemo(
+    () => filteredItems.slice(pageStartIndex, pageEndIndex),
+    [filteredItems, pageStartIndex, pageEndIndex],
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedDateKey, filterModelLabel, filterUserName, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const countsByModeId = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -1132,9 +1156,9 @@ export default function ListaBipagemPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {filteredItems.map((row, index) => (
+                    {paginatedItems.map((row, index) => (
                       <tr
-                        key={row.id ?? `${row.code}-${row.scannedAt}-${index}`}
+                        key={row.id ?? `${row.code}-${row.scannedAt}-${pageStartIndex + index}`}
                         className="hover:bg-gray-50/80"
                       >
                         <td className="max-w-[220px] break-all px-4 py-3 font-medium text-gray-900">
@@ -1165,6 +1189,52 @@ export default function ListaBipagemPage() {
                 </table>
               </div>
             )}
+            {!loading && filteredItems.length > 0 ? (
+              <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-gray-600 sm:text-sm">
+                  Mostrando {pageStartIndex + 1}-{Math.min(pageEndIndex, totalFilteredItems)} de{' '}
+                  {totalFilteredItems} registros
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <label className="inline-flex items-center gap-2 text-xs text-gray-600 sm:text-sm">
+                    <span>Por página</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => setPageSize(Number(e.target.value))}
+                      className="focus-ring h-9 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-800 sm:text-sm"
+                      aria-label="Selecionar quantidade por página"
+                    >
+                      {PAGE_SIZE_OPTIONS.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                      disabled={currentPageSafe <= 1}
+                      className="focus-ring h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                    >
+                      Anterior
+                    </button>
+                    <span className="min-w-[5.5rem] text-center text-xs text-gray-700 sm:text-sm">
+                      Página {currentPageSafe} de {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={currentPageSafe >= totalPages}
+                      className="focus-ring h-9 rounded-lg border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                    >
+                      Próxima
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

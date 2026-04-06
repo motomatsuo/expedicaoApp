@@ -16,6 +16,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BipagemService } from './bipagem.service';
 import { BipagemSseService } from './bipagem-sse.service';
 import { CreateBipagemDto } from './dto/create-bipagem.dto';
+import { ListBipagemMetricsDto } from './dto/list-bipagem-metrics.dto';
 import type { Response } from 'express';
 import type { Observable } from 'rxjs';
 
@@ -30,6 +31,11 @@ export class BipagemController {
   @Get()
   async list() {
     return { items: await this.bipagemService.list() };
+  }
+
+  @Get('metrics')
+  async metrics(@Query() query: ListBipagemMetricsDto) {
+    return this.bipagemService.getMetrics(query);
   }
 
   /** Push em tempo real para todas as telas (ex.: celular bipando, desktop na lista). */

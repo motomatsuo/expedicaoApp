@@ -46,6 +46,21 @@ export class BipagemRepository {
     return queryResult.data ?? [];
   }
 
+  async findByDateRange(input: { from: string; to: string }): Promise<BipagemRecord[]> {
+    const queryResult = await this.supabaseService.homologClient
+      .from('db_expedicao_bipagem')
+      .select('*')
+      .gte('created_at', `${input.from}T00:00:00.000Z`)
+      .lte('created_at', `${input.to}T23:59:59.999Z`)
+      .order('created_at', { ascending: false });
+
+    if (queryResult.error) {
+      throw new InternalServerErrorException('Falha ao consultar metricas de bipagem.');
+    }
+
+    return queryResult.data ?? [];
+  }
+
   async create(input: {
     codigo: string;
     atendente: string;
