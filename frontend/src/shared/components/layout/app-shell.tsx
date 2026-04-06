@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { logout } from '@/features/auth/services/auth-service';
+import { GlobalHeaderBipagemSearch } from '@/shared/components/layout/global-header-bipagem-search';
 import { ROUTES } from '@/shared/constants/routes';
 
 type AppShellProps = {
@@ -14,7 +15,7 @@ type NavItem = {
   href: string;
   label: string;
   title: string;
-  icon: 'dashboard' | 'bipagem' | 'listaBipagem';
+  icon: 'dashboard' | 'bipagem' | 'listaBipagem' | 'acompanhamentoRte';
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -26,10 +27,37 @@ const NAV_ITEMS: NavItem[] = [
     title: 'Lista bipagem',
     icon: 'listaBipagem',
   },
+  {
+    href: ROUTES.acompanhamentoRte,
+    label: 'Acomp. RTE',
+    title: 'Acompanhamento RTE',
+    icon: 'acompanhamentoRte',
+  },
 ];
 
 function NavIcon({ name }: { name: NavItem['icon'] }) {
   const cls = 'h-6 w-6 shrink-0';
+  if (name === 'acompanhamentoRte') {
+    return (
+      <svg
+        className={cls}
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
+      </svg>
+    );
+  }
   if (name === 'listaBipagem') {
     return (
       <svg
@@ -114,16 +142,17 @@ export function AppShell({ children }: AppShellProps) {
   const router = useRouter();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const [userName, setUserName] = useState<string>('');
-  const [search, setSearch] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const pageTitle = pathname.startsWith(ROUTES.listaBipagem)
     ? 'Lista bipagem'
     : pathname.startsWith(ROUTES.bipagem)
       ? 'Bipagem'
-      : pathname.startsWith(ROUTES.dashboard)
-        ? 'Dashboard'
-        : 'Expedição';
+      : pathname.startsWith(ROUTES.acompanhamentoRte)
+        ? 'Acomp. RTE'
+        : pathname.startsWith(ROUTES.dashboard)
+          ? 'Dashboard'
+          : 'Expedição';
 
   useEffect(() => {
     async function loadUser() {
@@ -152,6 +181,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [router]);
 
   const isBipagemFullscreen = pathname.startsWith(ROUTES.bipagem);
+  const hideGlobalSearch = pathname.startsWith(ROUTES.acompanhamentoRte);
 
   const asideClass = [
     'sidebar',
@@ -243,7 +273,9 @@ export function AppShell({ children }: AppShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {!isBipagemFullscreen ? (
-          <header className="relative z-10 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
+          <header
+            className={`relative z-10 grid min-w-0 items-center gap-4 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 ${hideGlobalSearch ? 'grid-cols-[1fr_auto]' : 'grid-cols-[1fr_auto_1fr]'}`}
+          >
             <div className="flex min-w-0 items-center space-x-2 sm:space-x-4">
               <button
                 type="button"
@@ -272,60 +304,11 @@ export function AppShell({ children }: AppShellProps) {
               </span>
             </div>
 
-            <div className="relative mx-auto flex min-w-0 w-[min(42vw,13rem)] justify-center sm:w-full sm:max-w-2xl">
-              <div className="relative w-full max-w-[13rem] sm:max-w-xl">
-                <div className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="text-gray-400"
-                    aria-hidden
-                  >
-                    <circle cx="11" cy="11" r="8" />
-                    <path d="m21 21-4.35-4.35" />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-16 text-sm text-gray-800 shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-200 sm:pr-20 sm:text-base"
-                  placeholder="Pesquisar..."
-                  aria-label="Pesquisar"
-                />
-                <div className="absolute bottom-0 right-0 top-0 flex items-center py-[3px] pr-[3px]">
-                  <span className="pointer-events-none px-1.5 text-lg text-gray-300 sm:px-2">|</span>
-                  <Link
-                    href={ROUTES.bipagem}
-                    className="flex h-full shrink-0 items-center justify-center rounded-r-lg bg-[#F9FAFB] px-1.5 text-red-600 transition-all duration-200 hover:bg-[#E5E7EB] hover:text-red-700 sm:px-2"
-                    title="Ir para Bipagem"
-                    aria-label="Ir para Bipagem"
-                  >
-                    <svg
-                      width="16"
-                      height="16"
-                      className="sm:h-6 sm:w-6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      viewBox="0 0 24 24"
-                      aria-hidden
-                    >
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                  </Link>
-                </div>
+            {!hideGlobalSearch ? (
+              <div className="relative mx-auto flex min-w-0 w-[min(42vw,13rem)] justify-center sm:w-full sm:max-w-2xl">
+                <GlobalHeaderBipagemSearch />
               </div>
-            </div>
+            ) : null}
 
             <div className="flex items-center justify-end gap-2 sm:gap-3">
               <button

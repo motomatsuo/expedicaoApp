@@ -29,7 +29,11 @@ export class BipagemController {
   ) {}
 
   @Get()
-  async list() {
+  async list(@Query('codigo') codigo?: string) {
+    const q = codigo?.trim();
+    if (q && q.length >= 2) {
+      return { items: await this.bipagemService.searchByCodigo(q) };
+    }
     return { items: await this.bipagemService.list() };
   }
 

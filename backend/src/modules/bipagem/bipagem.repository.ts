@@ -23,6 +23,27 @@ export class BipagemRepository {
     return queryResult.data ?? [];
   }
 
+  /** Busca parcial por código (case-insensitive), mais recentes primeiro. */
+  async searchByCodigo(q: string, limit: number): Promise<BipagemRecord[]> {
+    const safe = q.replace(/[%_\\]/g, '');
+    if (safe.length < 2) {
+      return [];
+    }
+    const pattern = `%${safe}%`;
+    const queryResult = await this.supabaseService.homologClient
+      .from('db_expedicao_bipagem')
+      .select('*')
+      .ilike('codigo', pattern)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (queryResult.error) {
+      throw new InternalServerErrorException('Falha ao buscar bipagem por codigo.');
+    }
+
+    return queryResult.data ?? [];
+  }
+
   async findByFilters(input: {
     from: string;
     to: string;

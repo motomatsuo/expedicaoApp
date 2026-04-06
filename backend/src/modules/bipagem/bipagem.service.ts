@@ -26,6 +26,18 @@ export class BipagemService {
     return this.bipagemRepository.findAll();
   }
 
+  private static readonly CODIGO_SEARCH_MIN = 2;
+  private static readonly CODIGO_SEARCH_MAX = 80;
+  private static readonly CODIGO_SEARCH_LIMIT = 12;
+
+  async searchByCodigo(raw: string): Promise<BipagemRecord[]> {
+    const q = raw.trim();
+    if (q.length < BipagemService.CODIGO_SEARCH_MIN || q.length > BipagemService.CODIGO_SEARCH_MAX) {
+      return [];
+    }
+    return this.bipagemRepository.searchByCodigo(q, BipagemService.CODIGO_SEARCH_LIMIT);
+  }
+
   async create(input: CreateBipagemDto): Promise<BipagemRecord> {
     const record = await this.bipagemRepository.create(input);
     this.bipagemSseService.emitListChanged();

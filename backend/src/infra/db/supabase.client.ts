@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { PortalUser } from '../../modules/users/entities/portal-user.entity';
 import { BipagemRecord } from '../../modules/bipagem/entities/bipagem.entity';
+import { TrackingNfExpedicaoRecord } from '../../modules/tracking-rte/entities/tracking-nf-expedicao.entity';
 
 type Database = {
   public: {
@@ -25,6 +26,12 @@ type Database = {
             | 'shopee_entrega_rapida';
         };
         Update: Partial<BipagemRecord>;
+        Relationships: [];
+      };
+      db_tracking_nf_expedicao: {
+        Row: TrackingNfExpedicaoRecord;
+        Insert: Partial<TrackingNfExpedicaoRecord>;
+        Update: Partial<TrackingNfExpedicaoRecord>;
         Relationships: [];
       };
     };

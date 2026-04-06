@@ -1,6 +1,6 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   useCallback,
   useEffect,
@@ -624,6 +624,8 @@ function DatePickerPanel({
 
 export default function ListaBipagemPage() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const codigoFromUrl = (searchParams.get('codigo') ?? '').trim();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const [items, setItems] = useState<ListaBipagemRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -659,6 +661,24 @@ export default function ListaBipagemPage() {
       setSelectedDateKey(lastFiveKeys[0] ?? '');
     }
   }, [lastFiveKeys, selectedDateKey]);
+
+  const syncedUrlCodigoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!codigoFromUrl) {
+      syncedUrlCodigoRef.current = null;
+      return;
+    }
+    if (items.length === 0) return;
+    if (syncedUrlCodigoRef.current === codigoFromUrl) return;
+    const c = codigoFromUrl.toLowerCase();
+    const hit =
+      items.find((r) => r.code.toLowerCase() === c) ??
+      items.find((r) => r.code.toLowerCase().includes(c));
+    if (hit) {
+      setSelectedDateKey(hit.dateKey);
+      syncedUrlCodigoRef.current = codigoFromUrl;
+    }
+  }, [codigoFromUrl, items]);
 
   const load = useCallback(async (options?: { silent?: boolean }) => {
     const silent = options?.silent === true;
@@ -792,13 +812,16 @@ export default function ListaBipagemPage() {
     return [...names].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   }, [items]);
 
-  const filteredItems = useMemo(
-    () =>
-      dayItems
-        .filter((row) => filterModelLabel === null || row.modeLabel === filterModelLabel)
-        .filter((row) => filterUserName === null || row.userName === filterUserName),
-    [dayItems, filterModelLabel, filterUserName],
-  );
+  const filteredItems = useMemo(() => {
+    let rows = dayItems
+      .filter((row) => filterModelLabel === null || row.modeLabel === filterModelLabel)
+      .filter((row) => filterUserName === null || row.userName === filterUserName);
+    if (codigoFromUrl) {
+      const c = codigoFromUrl.toLowerCase();
+      rows = rows.filter((row) => row.code.toLowerCase().includes(c));
+    }
+    return rows;
+  }, [dayItems, filterModelLabel, filterUserName, codigoFromUrl]);
 
   const totalFilteredItems = filteredItems.length;
   const totalPages = Math.max(1, Math.ceil(totalFilteredItems / pageSize));
@@ -810,9 +833,30 @@ export default function ListaBipagemPage() {
     [filteredItems, pageStartIndex, pageEndIndex],
   );
 
+  const highlightCodigoNorm = codigoFromUrl ? codigoFromUrl.toLowerCase() : '';
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDateKey, filterModelLabel, filterUserName, pageSize]);
+  }, [selectedDateKey, filterModelLabel, filterUserName, pageSize, codigoFromUrl]);
+
+  useEffect(() => {
+    if (!codigoFromUrl) return;
+    const c = codigoFromUrl.toLowerCase();
+    const idx = filteredItems.findIndex((r) => r.code.toLowerCase().includes(c));
+    if (idx >= 0) {
+      setCurrentPage(Math.floor(idx / pageSize) + 1);
+    }
+  }, [codigoFromUrl, filteredItems, pageSize]);
+
+  useEffect(() => {
+    if (!highlightCodigoNorm || paginatedItems.length === 0) return;
+    const match = paginatedItems.find((r) => r.code.toLowerCase().includes(highlightCodigoNorm));
+    if (match?.id == null) return;
+    const id = `bip-row-${match.id}`;
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
+  }, [highlightCodigoNorm, paginatedItems]);
 
   useEffect(() => {
     if (currentPage > totalPages) {
@@ -1156,10 +1200,19 @@ export default function ListaBipagemPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {paginatedItems.map((row, index) => (
+                    {paginatedItems.map((row, index) => {
+                      const highlighted =
+                        !!highlightCodigoNorm &&
+                        row.code.toLowerCase().includes(highlightCodigoNorm);
+                      return (
                       <tr
                         key={row.id ?? `${row.code}-${row.scannedAt}-${pageStartIndex + index}`}
-                        className="hover:bg-gray-50/80"
+                        id={typeof row.id === 'number' ? `bip-row-${row.id}` : undefined}
+                        className={
+                          highlighted
+                            ? 'bg-red-50/90 ring-1 ring-inset ring-red-200/80 hover:bg-red-50'
+                            : 'hover:bg-gray-50/80'
+                        }
                       >
                         <td className="max-w-[220px] break-all px-4 py-3 font-medium text-gray-900">
                           {row.code}
@@ -1184,7 +1237,8 @@ export default function ListaBipagemPage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
