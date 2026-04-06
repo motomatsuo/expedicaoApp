@@ -13,6 +13,8 @@ import { JwtPayload } from './types/jwt-payload.type';
 
 @Injectable()
 export class AuthService {
+  private static readonly DEFAULT_SESSION_TTL_HOURS = 12;
+
   constructor(
     private readonly usersRepository: UsersRepository,
     private readonly jwtService: JwtService,
@@ -22,6 +24,7 @@ export class AuthService {
   async login(loginDto: LoginDto): Promise<{
     accessToken: string;
     user: PublicPortalUser;
+    sessionMaxAgeMs: number;
   }> {
     const user = await this.usersRepository.findByEmail(loginDto.email);
 
@@ -49,12 +52,17 @@ export class AuthService {
       email: user.email_vend,
     };
 
+    const sessionTtlHours = this.getSessionTtlHours();
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: '15m',
+      expiresIn: `${sessionTtlHours}h`,
     });
 
-    return { accessToken, user: toPublicPortalUser(user) };
+    return {
+      accessToken,
+      user: toPublicPortalUser(user),
+      sessionMaxAgeMs: sessionTtlHours * 60 * 60 * 1000,
+    };
   }
 
   async me(email: string): Promise<PublicPortalUser | null> {
@@ -89,5 +97,19 @@ export class AuthService {
 
     // Compatibilidade legada para fase inicial.
     return inputPassword === storedPassword;
+  }
+
+  private getSessionTtlHours(): number {
+    const rawValue = this.configService.get<string>('SESSION_TTL_HOURS');
+    if (!rawValue) {
+      return AuthService.DEFAULT_SESSION_TTL_HOURS;
+    }
+
+    const ttlHours = Number(rawValue);
+    if (!Number.isInteger(ttlHours) || ttlHours <= 0) {
+      return AuthService.DEFAULT_SESSION_TTL_HOURS;
+    }
+
+    return ttlHours;
   }
 }

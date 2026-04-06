@@ -23,13 +23,14 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const { accessToken, user } = await this.authService.login(loginDto);
+    const { accessToken, user, sessionMaxAgeMs } =
+      await this.authService.login(loginDto);
 
     response.cookie('access_token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 1000 * 60 * 15,
+      maxAge: sessionMaxAgeMs,
       path: '/',
     });
 

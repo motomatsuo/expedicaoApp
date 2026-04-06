@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { login } from '../services/auth-service';
 import { ROUTES } from '@/shared/constants/routes';
 
+const DEFAULT_SESSION_TTL_HOURS = 12;
+const SESSION_TTL_HOURS = Number(
+  process.env.NEXT_PUBLIC_SESSION_TTL_HOURS ?? DEFAULT_SESSION_TTL_HOURS,
+);
+const SESSION_MAX_AGE_SECONDS =
+  Number.isFinite(SESSION_TTL_HOURS) && SESSION_TTL_HOURS > 0
+    ? Math.floor(SESSION_TTL_HOURS * 60 * 60)
+    : DEFAULT_SESSION_TTL_HOURS * 60 * 60;
+
 export function LoginForm() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -19,7 +28,8 @@ export function LoginForm() {
 
     try {
       await login({ email, password });
-      document.cookie = 'portal_ui_session=1; path=/; max-age=900; samesite=lax';
+      document.cookie =
+        `portal_ui_session=1; path=/; max-age=${SESSION_MAX_AGE_SECONDS}; samesite=lax`;
       router.push(ROUTES.dashboard);
       router.refresh();
     } catch {
