@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { logout } from '@/features/auth/services/auth-service';
+import { logoutAndRedirectToLogin } from '@/features/auth/services/auth-service';
 import { GlobalHeaderBipagemSearch } from '@/shared/components/layout/global-header-bipagem-search';
 import { ROUTES } from '@/shared/constants/routes';
 
@@ -139,7 +139,6 @@ function SettingsIcon() {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
   const [userName, setUserName] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -175,10 +174,9 @@ export function AppShell({ children }: AppShellProps) {
     void loadUser();
   }, [apiUrl]);
 
-  const handleLogout = useCallback(async () => {
-    await logout();
-    router.push(ROUTES.login);
-  }, [router]);
+  const handleLogout = useCallback(() => {
+    logoutAndRedirectToLogin();
+  }, []);
 
   const isBipagemFullscreen = pathname.startsWith(ROUTES.bipagem);
   const hideGlobalSearch = pathname.startsWith(ROUTES.acompanhamentoRte);

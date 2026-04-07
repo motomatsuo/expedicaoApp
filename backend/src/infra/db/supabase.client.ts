@@ -80,6 +80,19 @@ type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      db_rte_prazos: {
+        Row: {
+          id: number;
+          municipio: string | null;
+          uf: string | null;
+          prazo_dias: number | null;
+          dias_semana: number[] | null;
+          created_at: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

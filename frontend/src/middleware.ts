@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ROUTES } from '@/shared/constants/routes';
+import { ROUTES } from './shared/constants/routes';
 
 const protectedPaths = [
   ROUTES.dashboard,
@@ -8,7 +8,7 @@ const protectedPaths = [
   ROUTES.acompanhamentoRte,
 ];
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hasSession = request.cookies.get('portal_ui_session')?.value === '1';
 

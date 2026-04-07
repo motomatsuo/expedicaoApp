@@ -109,6 +109,56 @@ function clientValueLabel(value: number | null | undefined): string {
   return 'Sem classificação';
 }
 
+function formatYmdBr(ymd: string | null | undefined): string {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return '—';
+  const [y, m, d] = ymd.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function SlaTag({ item }: { item: TrackingNfExpedicaoItem }) {
+  const s = item.sla_status;
+  if (!s) return null;
+  const meta = {
+    no_prazo: {
+      label: 'No prazo',
+      className: 'border-emerald-200/90 bg-emerald-50 text-emerald-800',
+      title: item.sla_data_limite
+        ? `Dentro do prazo (dias permitidos). Limite: ${formatYmdBr(item.sla_data_limite)}`
+        : 'Dentro do prazo',
+    },
+    atrasado: {
+      label: 'Atrasado',
+      className: 'border-red-200/90 bg-red-50 text-red-800',
+      title: item.sla_data_limite
+        ? `Fora do prazo. Limite: ${formatYmdBr(item.sla_data_limite)}`
+        : 'Fora do prazo',
+    },
+    sem_recebido: {
+      label: 'Sem recebido',
+      className: 'border-gray-200 bg-gray-100 text-gray-600',
+      title: 'Data de recebimento pela transportadora não registrada',
+    },
+    sem_cadastro: {
+      label: 'Sem cadastro',
+      className: 'border-amber-200/90 bg-amber-50 text-amber-900',
+      title: 'Município/UF sem regra em db_rte_prazos',
+    },
+    indeterminado: {
+      label: 'SLA indeterm.',
+      className: 'border-slate-200 bg-slate-100 text-slate-700',
+      title: 'Regra encontrada, mas não foi possível calcular a data limite (ex.: recebido_em inválido)',
+    },
+  }[s];
+  return (
+    <span
+      className={`inline-flex max-w-full shrink-0 items-center rounded-md border px-1.5 py-0.5 text-[9px] font-bold leading-none tabular-nums ${meta.className}`}
+      title={meta.title}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
 /** Título em coluna minimizada (uma letra por linha), como no mock. */
 function VerticalColumnTitle({ label, narrow }: { label: string; narrow?: boolean }) {
   const letterClass = narrow ? 'leading-none text-[10px]' : 'leading-none text-xs';
@@ -423,9 +473,10 @@ export default function AcompanhamentoRtePage() {
                       NF {item.nf != null ? String(item.nf) : '—'}
                     </span>
                   </div>
-                  {item.setp_code != null ? (
-                    <StepCodeBadge code={item.setp_code} />
-                  ) : null}
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    {item.setp_code != null ? <StepCodeBadge code={item.setp_code} /> : null}
+                    <SlaTag item={item} />
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                   <svg
@@ -494,7 +545,7 @@ export default function AcompanhamentoRtePage() {
         </div>
       );
     },
-    [colState, loadMore, openDeliveryReceipt, toggleSort],
+    [colState, loadMore, toggleSort],
   );
 
   const desktopColumnOrCollapsed = useCallback(
@@ -698,6 +749,36 @@ export default function AcompanhamentoRtePage() {
 
             {modalTab === 'rte' ? (
               <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 sm:col-span-2">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">SLA entrega</dt>
+                  <dd className="mt-2 flex flex-wrap items-center gap-2">
+                    <SlaTag item={modalItem} />
+                    <span className="text-xs text-gray-600">
+                      {modalItem.sla_prazo_dias != null
+                        ? `Prazo: ${modalItem.sla_prazo_dias} dia(s) úteis (seg–sex, sem feriados nacionais)`
+                        : '—'}
+                    </span>
+                  </dd>
+                  <dd className="mt-3 grid gap-2 text-xs text-gray-700 sm:grid-cols-2">
+                    <div>
+                      <span className="font-semibold text-gray-500">Recebido em </span>
+                      {formatTrackingDate(modalItem.recebido_em ?? null)}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-500">Data limite </span>
+                      {formatYmdBr(modalItem.sla_data_limite)}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-gray-500">Referência </span>
+                      {formatYmdBr(modalItem.sla_referencia_data)}
+                      <span className="block text-[10px] font-normal text-gray-500">
+                        Contagem a partir do dia seguinte ao recebido (SP). Limite = próximo dia de rota do
+                        município (planilha) após o último dia útil contado. Entregues: referência = rastreio.
+                        Em trânsito: hoje (SP).
+                      </span>
+                    </div>
+                  </dd>
+                </div>
                 <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Código etapa</dt>
                   <dd className="mt-1 text-sm font-semibold text-gray-900">{modalItem.setp_code ?? '—'}</dd>

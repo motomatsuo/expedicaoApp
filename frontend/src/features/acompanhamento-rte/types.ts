@@ -7,6 +7,13 @@ export type RteColumnKey =
   | 'entregue'
   | 'enc_sem_entrega';
 
+export type RteSlaStatus =
+  | 'sem_recebido'
+  | 'sem_cadastro'
+  | 'indeterminado'
+  | 'no_prazo'
+  | 'atrasado';
+
 export type TrackingNfExpedicaoItem = {
   id: number;
   created_at: string;
@@ -14,6 +21,7 @@ export type TrackingNfExpedicaoItem = {
   date_tracking: string | null;
   description: string | null;
   setp_code: number | null;
+  recebido_em?: string | null;
   codcli: string | null;
   vend: string | null;
   razao: string | null;
@@ -29,6 +37,10 @@ export type TrackingNfExpedicaoItem = {
   cliente_classificacao?: string | null;
   cliente_tp_comercio?: string | null;
   cliente_descricao?: string | null;
+  sla_status?: RteSlaStatus | null;
+  sla_data_limite?: string | null;
+  sla_referencia_data?: string | null;
+  sla_prazo_dias?: number | null;
 };
 
 export type TrackingRteColumnResponse = {

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../infra/db/supabase.client';
 import { COLUMN_STEP_CODES, RteColumnKey } from './column-step-codes';
 import { TrackingNfExpedicaoRecord } from './entities/tracking-nf-expedicao.entity';
+import { type RtePrazoRow, buildPrazoMap, computeRteSla } from './rte-sla';
 
 /** Por padrão usa `SUPABASE_URL`. Defina `TRACKING_RTE_USE_HOMOLOG=true` se a tabela existir só na homolog. */
 function escapeIlike(value: string): string {
@@ -12,6 +13,8 @@ function escapeIlike(value: string): string {
 function quoteFilterValue(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
+
+const ENTREGUE_STEP_CODES = new Set<number>(COLUMN_STEP_CODES.entregue);
 
 function escapeHtml(value: string): string {
   return value
@@ -269,12 +272,33 @@ export class TrackingRteRepository {
       }
     }
 
+    const prazosResult = await this.trackingDb
+      .from('db_rte_prazos')
+      .select('municipio,uf,prazo_dias,dias_semana');
+    let prazoMap = new Map<string, { prazo_dias: number; dias_semana: number[] }>();
+    if (prazosResult.error) {
+      this.logger.warn(
+        `Supabase db_rte_prazos: ${prazosResult.error.message} (${prazosResult.error.code ?? 'no-code'})`,
+      );
+    } else {
+      prazoMap = buildPrazoMap((prazosResult.data ?? []) as RtePrazoRow[]);
+    }
+
     return {
       items: pageItems.map((item) => {
         const vendorKey = item.vend?.trim();
         const vendor = vendorKey ? vendorMap.get(vendorKey) : undefined;
         const codcliKey = item.codcli?.trim();
         const client = codcliKey ? clientMap.get(codcliKey) : undefined;
+        const sla = computeRteSla({
+          recebido_em: item.recebido_em ?? null,
+          municipio: item.municipio,
+          est: item.est,
+          date_tracking: item.date_tracking,
+          setp_code: item.setp_code,
+          prazoMap,
+          entregueStepCodes: ENTREGUE_STEP_CODES,
+        });
         return {
           ...item,
           vendedor_nome: vendor?.nome ?? null,
@@ -287,6 +311,10 @@ export class TrackingRteRepository {
           cliente_classificacao: client?.classificacao ?? null,
           cliente_tp_comercio: client?.tp_comercio ?? null,
           cliente_descricao: client?.descricao ?? null,
+          sla_status: sla.sla_status,
+          sla_data_limite: sla.sla_data_limite,
+          sla_referencia_data: sla.sla_referencia_data,
+          sla_prazo_dias: sla.sla_prazo_dias,
         };
       }),
       total,
