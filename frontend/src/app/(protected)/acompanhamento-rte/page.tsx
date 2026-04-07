@@ -52,6 +52,61 @@ function formatTrackingDate(iso: string | null): string {
   }
 }
 
+function initials(name: string | null | undefined): string {
+  const n = (name ?? '').trim();
+  if (!n) return 'VN';
+  const parts = n.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+}
+
+function ClientValueIcon({ value }: { value: number | null | undefined }) {
+  if (value == null || value < 1 || value > 5) return null;
+
+  if (value === 5) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-cyan-500" fill="currentColor" aria-hidden>
+        <path d="M12 2 4 9l8 13 8-13-8-7z" />
+      </svg>
+    );
+  }
+  if (value === 4) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-violet-500" fill="currentColor" aria-hidden>
+        <path d="M12 2 4 7v10l8 5 8-5V7l-8-5z" />
+      </svg>
+    );
+  }
+  if (value === 3) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-amber-500" fill="currentColor" aria-hidden>
+        <path d="M7 3h10l-1 4a5 5 0 1 1-8 0L7 3zm3 13.5h4L15.5 22 12 20.5 8.5 22 10 16.5z" />
+      </svg>
+    );
+  }
+  if (value === 2) {
+    return (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-zinc-400" fill="currentColor" aria-hidden>
+        <path d="M7 3h10l-1 4a5 5 0 1 1-8 0L7 3zm3 13.5h4L15.5 22 12 20.5 8.5 22 10 16.5z" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-orange-700" fill="currentColor" aria-hidden>
+      <path d="M7 3h10l-1 4a5 5 0 1 1-8 0L7 3zm3 13.5h4L15.5 22 12 20.5 8.5 22 10 16.5z" />
+    </svg>
+  );
+}
+
+function clientValueLabel(value: number | null | undefined): string {
+  if (value === 5) return 'Diamante';
+  if (value === 4) return 'Platina';
+  if (value === 3) return 'Ouro';
+  if (value === 2) return 'Prata';
+  if (value === 1) return 'Bronze';
+  return 'Sem classificação';
+}
+
 /** Título em coluna minimizada (uma letra por linha), como no mock. */
 function VerticalColumnTitle({ label, narrow }: { label: string; narrow?: boolean }) {
   const letterClass = narrow ? 'leading-none text-[10px]' : 'leading-none text-xs';
@@ -75,6 +130,7 @@ export default function AcompanhamentoRtePage() {
 
   const [mobileColumn, setMobileColumn] = useState<RteColumnKey>('recebido');
   const [modalItem, setModalItem] = useState<TrackingNfExpedicaoItem | null>(null);
+  const [modalTab, setModalTab] = useState<'rte' | 'cliente'>('rte');
   const [loadError, setLoadError] = useState<string | null>(null);
   /** Colunas ENTREGUE e ENC. SEM ENTREGA podem minimizar; iniciam fechadas. */
   const [entregueMinimized, setEntregueMinimized] = useState(true);
@@ -171,6 +227,7 @@ export default function AcompanhamentoRtePage() {
 
   useEffect(() => {
     if (!modalItem) return;
+    setModalTab('rte');
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === 'Escape') setModalItem(null);
     };
@@ -278,14 +335,26 @@ export default function AcompanhamentoRtePage() {
                   aria-hidden
                 />
                 <div className="flex min-w-0 items-start justify-between gap-2 pl-0.5">
-                  <span className="min-w-0 truncate text-[15px] font-bold tracking-tight text-gray-900 tabular-nums">
-                    NF {item.nf != null ? String(item.nf) : '—'}
-                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className="mt-1 inline-flex max-w-full items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-1 py-px text-[9px] font-semibold tabular-nums text-gray-600"
+                      title={`Valor cliente: ${clientValueLabel(item.cliente_valor)}`}
+                    >
+                      {item.codcli?.trim() || 'CLI —'}
+                      <ClientValueIcon value={item.cliente_valor} />
+                    </span>
+                    <span className="mt-0.5 block truncate text-[10px] text-gray-500" title={item.razao ?? ''}>
+                      {item.razao?.trim() || 'Cliente sem razão social'}
+                    </span>
+                    <span className="mt-1 block min-w-0 truncate text-[18px] font-extrabold tracking-tight text-gray-900 tabular-nums">
+                      NF {item.nf != null ? String(item.nf) : '—'}
+                    </span>
+                  </div>
                   {item.setp_code != null ? (
                     <StepCodeBadge code={item.setp_code} />
                   ) : null}
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
                   <svg
                     className="h-3.5 w-3.5 shrink-0 text-gray-400"
                     fill="none"
@@ -300,8 +369,28 @@ export default function AcompanhamentoRtePage() {
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <span className="font-medium tabular-nums text-gray-600">
+                  <span className="font-normal tabular-nums text-gray-500">
                     {formatTrackingDate(item.date_tracking)}
+                  </span>
+                </div>
+                <div className="mt-0.5 flex items-center gap-2 border-t border-gray-100 pt-2">
+                  {item.vendedor_foto ? (
+                    <img
+                      src={item.vendedor_foto}
+                      alt={item.vendedor_nome?.trim() ? `Foto de ${item.vendedor_nome}` : 'Foto do vendedor'}
+                      className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-gray-200"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-semibold text-gray-600 ring-1 ring-gray-300">
+                      {initials(item.vendedor_nome)}
+                    </span>
+                  )}
+                  <span
+                    className="truncate text-[11px] font-medium text-gray-600"
+                    title={item.vendedor_nome ?? item.vend ?? ''}
+                  >
+                    {item.vendedor_nome?.trim() || item.vend?.trim() || 'Vendedor não identificado'}
                   </span>
                 </div>
               </button>
@@ -395,7 +484,7 @@ export default function AcompanhamentoRtePage() {
           </select>
           <input
             type="search"
-            placeholder="Filtrar por valores..."
+            placeholder="Buscar por NF, cliente, vendedor..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             className="min-w-0 flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-[#dc2626] focus:outline-none sm:max-w-[280px] md:text-base"
@@ -464,9 +553,14 @@ export default function AcompanhamentoRtePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-start justify-between gap-2">
-              <h2 id="rte-modal-title" className="text-lg font-bold text-gray-900">
-                NF {modalItem.nf != null ? String(modalItem.nf) : '—'}
-              </h2>
+              <div>
+                <h2 id="rte-modal-title" className="text-xl font-extrabold tracking-tight text-gray-900">
+                  NF {modalItem.nf != null ? String(modalItem.nf) : '—'}
+                </h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  {modalTab === 'rte' ? 'Informações de rastreio' : 'Informações do cliente'}
+                </p>
+              </div>
               <button
                 type="button"
                 className="rounded-lg p-1 text-gray-500 hover:bg-gray-100"
@@ -478,26 +572,74 @@ export default function AcompanhamentoRtePage() {
                 </svg>
               </button>
             </div>
-            <dl className="space-y-3 text-sm">
-              <div>
-                <dt className="font-medium text-gray-500">Código etapa</dt>
-                <dd className="mt-0.5 text-gray-900">{modalItem.setp_code ?? '—'}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-gray-500">Data rastreio</dt>
-                <dd className="mt-0.5 text-gray-900">{formatTrackingDate(modalItem.date_tracking)}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-gray-500">Descrição</dt>
-                <dd className="mt-0.5 whitespace-pre-wrap break-words text-gray-900">
-                  {modalItem.description?.trim() || '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium text-gray-500">Registro</dt>
-                <dd className="mt-0.5 text-gray-900">{formatTrackingDate(modalItem.created_at)}</dd>
-              </div>
-            </dl>
+            <div className="mb-5 inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1">
+              <button
+                type="button"
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  modalTab === 'rte'
+                    ? 'bg-white text-[#dc2626] shadow-sm ring-1 ring-red-100'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setModalTab('rte')}
+              >
+                Detalhes RTE
+              </button>
+              <button
+                type="button"
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  modalTab === 'cliente'
+                    ? 'bg-white text-[#dc2626] shadow-sm ring-1 ring-red-100'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+                onClick={() => setModalTab('cliente')}
+              >
+                Detalhes Cliente
+              </button>
+            </div>
+
+            {modalTab === 'rte' ? (
+              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Código etapa</dt>
+                  <dd className="mt-1 text-sm font-semibold text-gray-900">{modalItem.setp_code ?? '—'}</dd>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Data rastreio</dt>
+                  <dd className="mt-1 text-sm font-semibold text-gray-900">
+                    {formatTrackingDate(modalItem.date_tracking)}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 sm:col-span-2">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Descrição</dt>
+                  <dd className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-900">
+                    {modalItem.description?.trim() || '—'}
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">ID cliente</dt>
+                  <dd className="mt-1 text-sm font-semibold text-gray-900">{modalItem.codcli ?? '—'}</dd>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Documento</dt>
+                  <dd className="mt-1 text-sm font-semibold text-gray-900">{modalItem.cliente_documento ?? '—'}</dd>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 sm:col-span-2">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Razão social</dt>
+                  <dd className="mt-1 text-sm leading-relaxed text-gray-900">
+                    {modalItem.cliente_nome_empresa ?? modalItem.razao ?? '—'}
+                  </dd>
+                </div>
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3 sm:col-span-2">
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Município / UF</dt>
+                  <dd className="mt-1 text-sm font-semibold text-gray-900">
+                    {[modalItem.municipio, modalItem.est].filter(Boolean).join(' / ') || '—'}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
         </div>
       ) : null}

@@ -34,6 +34,40 @@ type Database = {
         Update: Partial<TrackingNfExpedicaoRecord>;
         Relationships: [];
       };
+      db_vendedores: {
+        Row: {
+          id_protheus: string;
+          nome: string;
+          telefone: string;
+          disponivel: boolean;
+          id_chatwoot: number | null;
+          instancia_evo_api: string | null;
+          foto: string | null;
+          email: string | null;
+          id_slack: string | null;
+          apikey_evo: string | null;
+          nome_formatado: string | null;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      db_rfv: {
+        Row: {
+          codigo: string;
+          nome_empresa: string;
+          vendedor: string | null;
+          valor: number | null;
+          status: string | null;
+          classificacao: string | null;
+          descricao: string | null;
+          tp_comercio: string | null;
+          documento: string | null;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
