@@ -68,6 +68,18 @@ type Database = {
         Update: Record<string, never>;
         Relationships: [];
       };
+      rte_tokens: {
+        Row: {
+          id: string;
+          access_token: string;
+          expires_at: string;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -13,6 +13,15 @@ function quoteFilterValue(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 @Injectable()
 export class TrackingRteRepository {
   private readonly logger = new Logger(TrackingRteRepository.name);
@@ -26,6 +35,96 @@ export class TrackingRteRepository {
     return this.configService.get<string>('TRACKING_RTE_USE_HOMOLOG') === 'true'
       ? this.supabaseService.homologClient
       : this.supabaseService.client;
+  }
+
+  async buildDeliveryReceiptHtml(nf: number): Promise<string> {
+    const taxId =
+      this.configService.get<string>('RTE_TAX_ID_REGISTRATION')?.trim() || '43872050000171';
+    const baseUrl =
+      this.configService.get<string>('RTE_DELIVERY_RECEIPT_URL')?.trim() ||
+      'https://tracking-apigateway.rte.com.br/api/v1/deliveryreceipt';
+
+    const tokenResult = await this.trackingDb
+      .from('rte_tokens')
+      .select('access_token')
+      .eq('id', '1')
+      .single();
+    if (tokenResult.error || !tokenResult.data?.access_token) {
+      const msg = tokenResult.error?.message ?? 'token não encontrado';
+      this.logger.error(`Supabase rte_tokens: ${msg}`);
+      throw new InternalServerErrorException(`Falha ao obter token RTE: ${msg}`);
+    }
+
+    const url = `${baseUrl}?${new URLSearchParams({
+      TaxIdRegistration: taxId,
+      InvoiceNumber: String(nf),
+    }).toString()}`;
+
+    let payload: { Image?: string | null; Message?: string | null } | null = null;
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json,text/plain,*/*',
+          Authorization: `Bearer ${tokenResult.data.access_token}`,
+        },
+      });
+      if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`HTTP ${response.status} ${response.statusText} - ${txt.slice(0, 300)}`);
+      }
+      payload = (await response.json()) as { Image?: string | null; Message?: string | null };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'erro desconhecido';
+      this.logger.error(`RTE deliveryreceipt: ${msg}`);
+      throw new InternalServerErrorException(`Falha ao consultar comprovante RTE: ${msg}`);
+    }
+
+    if (!payload?.Image) {
+      const message = payload?.Message?.trim() || 'Comprovante não disponível para essa NF.';
+      return `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Comprovante NF ${nf}</title>
+    <style>
+      body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:24px;background:#f8fafc;color:#111827}
+      .box{max-width:900px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:18px}
+      h1{font-size:20px;margin:0 0 8px}
+      p{margin:0;color:#374151}
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h1>NF ${nf}</h1>
+      <p>${escapeHtml(message)}</p>
+    </div>
+  </body>
+</html>`;
+    }
+
+    const imageDataUrl = `data:image/jpeg;base64,${payload.Image}`;
+    return `<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Comprovante NF ${nf}</title>
+    <style>
+      body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:18px;background:#f8fafc;color:#111827}
+      .box{max-width:980px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:14px}
+      h1{font-size:18px;margin:0 0 12px}
+      img{max-width:100%;height:auto;border-radius:10px;border:1px solid #e5e7eb}
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h1>Comprovante de Entrega - NF ${nf}</h1>
+      <img alt="Comprovante NF ${nf}" src="${imageDataUrl}" />
+    </div>
+  </body>
+</html>`;
   }
 
   async findColumnPage(input: {

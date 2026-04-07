@@ -252,6 +252,13 @@ export default function AcompanhamentoRtePage() {
     [loadColumn],
   );
 
+  const openDeliveryReceipt = useCallback((nf: number | null) => {
+    if (nf == null) return;
+    const nfInt = Math.trunc(nf);
+    const url = `${API_URL}/tracking-rte/delivery-receipt/${nfInt}/html`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, []);
+
   const columnBody = useCallback(
     (key: RteColumnKey, options?: { showMinimize?: boolean }) => {
       const showMinimize = options?.showMinimize ?? false;
@@ -421,7 +428,7 @@ export default function AcompanhamentoRtePage() {
         </div>
       );
     },
-    [colState, loadMore, toggleSort],
+    [colState, loadMore, openDeliveryReceipt, toggleSort],
   );
 
   const desktopColumnOrCollapsed = useCallback(
@@ -554,9 +561,35 @@ export default function AcompanhamentoRtePage() {
           >
             <div className="mb-4 flex items-start justify-between gap-2">
               <div>
-                <h2 id="rte-modal-title" className="text-xl font-extrabold tracking-tight text-gray-900">
-                  NF {modalItem.nf != null ? String(modalItem.nf) : '—'}
-                </h2>
+                <div className="inline-flex items-center gap-2">
+                  <h2 id="rte-modal-title" className="text-xl font-extrabold tracking-tight text-gray-900">
+                    NF {modalItem.nf != null ? String(modalItem.nf) : '—'}
+                  </h2>
+                  {modalItem.nf != null ? (
+                    <button
+                      type="button"
+                      onClick={() => openDeliveryReceipt(modalItem.nf)}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+                      title="Abrir comprovante de entrega"
+                      aria-label="Abrir comprovante de entrega"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M14 3h7m0 0v7m0-7L10 14M5 5v14h14v-5"
+                        />
+                      </svg>
+                    </button>
+                  ) : null}
+                </div>
                 <p className="mt-1 text-xs text-gray-500">
                   {modalTab === 'rte' ? 'Informações de rastreio' : 'Informações do cliente'}
                 </p>

@@ -18,4 +18,8 @@ export class TrackingRteService {
       sort,
     });
   }
+
+  async deliveryReceiptHtml(nf: number): Promise<string> {
+    return this.trackingRteRepository.buildDeliveryReceiptHtml(nf);
+  }
 }
