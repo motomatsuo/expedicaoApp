@@ -22,6 +22,7 @@ type ColumnState = {
   total: number;
   loading: boolean;
   sort: 'asc' | 'desc';
+  initialized: boolean;
 };
 
 function emptyState(): Record<RteColumnKey, ColumnState> {
@@ -30,8 +31,9 @@ function emptyState(): Record<RteColumnKey, ColumnState> {
     o[key] = {
       items: [],
       total: 0,
-      loading: true,
+      loading: false,
       sort: 'desc',
+      initialized: false,
     };
   }
   return o;
@@ -135,6 +137,39 @@ export default function AcompanhamentoRtePage() {
   /** Colunas ENTREGUE e ENC. SEM ENTREGA podem minimizar; iniciam fechadas. */
   const [entregueMinimized, setEntregueMinimized] = useState(true);
   const [encSemEntregaMinimized, setEncSemEntregaMinimized] = useState(true);
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  const mobileColumnRef = useRef(mobileColumn);
+  const entregueMinimizedRef = useRef(entregueMinimized);
+  const encSemEntregaMinimizedRef = useRef(encSemEntregaMinimized);
+  const isMobileViewRef = useRef(isMobileView);
+  mobileColumnRef.current = mobileColumn;
+  entregueMinimizedRef.current = entregueMinimized;
+  encSemEntregaMinimizedRef.current = encSemEntregaMinimized;
+  isMobileViewRef.current = isMobileView;
+
+  const getVisibleColumns = useCallback(
+    (opts?: {
+      isMobile?: boolean;
+      mobileKey?: RteColumnKey;
+      entregueCollapsed?: boolean;
+      encSemEntregaCollapsed?: boolean;
+    }): RteColumnKey[] => {
+      const isMobile = opts?.isMobile ?? isMobileViewRef.current;
+      const mobileKey = opts?.mobileKey ?? mobileColumnRef.current;
+      const entregueCollapsed = opts?.entregueCollapsed ?? entregueMinimizedRef.current;
+      const encSemEntregaCollapsed =
+        opts?.encSemEntregaCollapsed ?? encSemEntregaMinimizedRef.current;
+
+      if (isMobile) return [mobileKey];
+      return RTE_KANBAN_COLUMNS.map(({ key }) => key).filter((key) => {
+        if (key === 'entregue' && entregueCollapsed) return false;
+        if (key === 'enc_sem_entrega' && encSemEntregaCollapsed) return false;
+        return true;
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -166,7 +201,7 @@ export default function AcompanhamentoRtePage() {
       const params = new URLSearchParams({
         column: key,
         skip: String(skip),
-        take: '10',
+        take: '5',
         sort,
       });
       if (debouncedSearch) {
@@ -198,6 +233,7 @@ export default function AcompanhamentoRtePage() {
               total: data.total,
               loading: false,
               sort,
+              initialized: true,
             },
           };
         });
@@ -217,13 +253,43 @@ export default function AcompanhamentoRtePage() {
   );
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    const apply = () => setIsMobileView(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
+  useEffect(() => {
     setColState(emptyState());
     const ac = new AbortController();
-    void Promise.all(
-      RTE_KANBAN_COLUMNS.map(({ key }) => loadColumn(key, { reset: true }, ac.signal)),
-    );
+    const visibleKeys = getVisibleColumns();
+    void Promise.all(visibleKeys.map((key) => loadColumn(key, { reset: true }, ac.signal)));
     return () => ac.abort();
-  }, [debouncedSearch, loadColumn]);
+  }, [debouncedSearch, loadColumn, getVisibleColumns]);
+
+  useEffect(() => {
+    const visibleKeys = getVisibleColumns({
+      isMobile: isMobileView,
+      mobileKey: mobileColumn,
+      entregueCollapsed: entregueMinimized,
+      encSemEntregaCollapsed: encSemEntregaMinimized,
+    });
+    for (const key of visibleKeys) {
+      const s = colStateRef.current[key];
+      if (!s.initialized && !s.loading) {
+        void loadColumn(key, { reset: true });
+      }
+    }
+  }, [
+    isMobileView,
+    mobileColumn,
+    entregueMinimized,
+    encSemEntregaMinimized,
+    getVisibleColumns,
+    loadColumn,
+  ]);
 
   useEffect(() => {
     if (!modalItem) return;
