@@ -184,16 +184,25 @@ export default function AcompanhamentoRtePage() {
   const [modalItem, setModalItem] = useState<TrackingNfExpedicaoItem | null>(null);
   const [modalTab, setModalTab] = useState<'rte' | 'cliente'>('rte');
   const [loadError, setLoadError] = useState<string | null>(null);
-  /** Colunas ENTREGUE e ENC. SEM ENTREGA podem minimizar; iniciam fechadas. */
-  const [entregueMinimized, setEntregueMinimized] = useState(true);
+  /** Colunas minimizáveis que iniciam fechadas por padrão. */
+  const [recebidoMinimized, setRecebidoMinimized] = useState(true);
+  const [emTransitoMinimized, setEmTransitoMinimized] = useState(true);
+  const [naUnidadeMinimized, setNaUnidadeMinimized] = useState(true);
+  const [entregueMinimized, setEntregueMinimized] = useState(false);
   const [encSemEntregaMinimized, setEncSemEntregaMinimized] = useState(true);
   const [isMobileView, setIsMobileView] = useState(false);
 
   const mobileColumnRef = useRef(mobileColumn);
+  const recebidoMinimizedRef = useRef(recebidoMinimized);
+  const emTransitoMinimizedRef = useRef(emTransitoMinimized);
+  const naUnidadeMinimizedRef = useRef(naUnidadeMinimized);
   const entregueMinimizedRef = useRef(entregueMinimized);
   const encSemEntregaMinimizedRef = useRef(encSemEntregaMinimized);
   const isMobileViewRef = useRef(isMobileView);
   mobileColumnRef.current = mobileColumn;
+  recebidoMinimizedRef.current = recebidoMinimized;
+  emTransitoMinimizedRef.current = emTransitoMinimized;
+  naUnidadeMinimizedRef.current = naUnidadeMinimized;
   entregueMinimizedRef.current = entregueMinimized;
   encSemEntregaMinimizedRef.current = encSemEntregaMinimized;
   isMobileViewRef.current = isMobileView;
@@ -202,18 +211,26 @@ export default function AcompanhamentoRtePage() {
     (opts?: {
       isMobile?: boolean;
       mobileKey?: RteColumnKey;
+      recebidoCollapsed?: boolean;
+      emTransitoCollapsed?: boolean;
+      naUnidadeCollapsed?: boolean;
       entregueCollapsed?: boolean;
       encSemEntregaCollapsed?: boolean;
     }): RteColumnKey[] => {
       const isMobile = opts?.isMobile ?? isMobileViewRef.current;
       const mobileKey = opts?.mobileKey ?? mobileColumnRef.current;
+      const recebidoCollapsed = opts?.recebidoCollapsed ?? recebidoMinimizedRef.current;
+      const emTransitoCollapsed = opts?.emTransitoCollapsed ?? emTransitoMinimizedRef.current;
+      const naUnidadeCollapsed = opts?.naUnidadeCollapsed ?? naUnidadeMinimizedRef.current;
       const entregueCollapsed = opts?.entregueCollapsed ?? entregueMinimizedRef.current;
       const encSemEntregaCollapsed =
         opts?.encSemEntregaCollapsed ?? encSemEntregaMinimizedRef.current;
 
       if (isMobile) return [mobileKey];
       return RTE_KANBAN_COLUMNS.map(({ key }) => key).filter((key) => {
-        if (key === 'entregue' && entregueCollapsed) return false;
+        if (key === 'recebido' && recebidoCollapsed) return false;
+        if (key === 'em_transito' && emTransitoCollapsed) return false;
+        if (key === 'na_unidade' && naUnidadeCollapsed) return false;
         if (key === 'enc_sem_entrega' && encSemEntregaCollapsed) return false;
         return true;
       });
@@ -323,6 +340,9 @@ export default function AcompanhamentoRtePage() {
     const visibleKeys = getVisibleColumns({
       isMobile: isMobileView,
       mobileKey: mobileColumn,
+      recebidoCollapsed: recebidoMinimized,
+      emTransitoCollapsed: emTransitoMinimized,
+      naUnidadeCollapsed: naUnidadeMinimized,
       entregueCollapsed: entregueMinimized,
       encSemEntregaCollapsed: encSemEntregaMinimized,
     });
@@ -335,6 +355,9 @@ export default function AcompanhamentoRtePage() {
   }, [
     isMobileView,
     mobileColumn,
+    recebidoMinimized,
+    emTransitoMinimized,
+    naUnidadeMinimized,
     entregueMinimized,
     encSemEntregaMinimized,
     getVisibleColumns,
@@ -402,7 +425,9 @@ export default function AcompanhamentoRtePage() {
                   type="button"
                   title="Minimizar coluna"
                   onClick={() => {
-                    if (key === 'entregue') setEntregueMinimized(true);
+                    if (key === 'recebido') setRecebidoMinimized(true);
+                    if (key === 'em_transito') setEmTransitoMinimized(true);
+                    if (key === 'na_unidade') setNaUnidadeMinimized(true);
                     if (key === 'enc_sem_entrega') setEncSemEntregaMinimized(true);
                   }}
                   className="ml-2 shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100"
@@ -548,51 +573,71 @@ export default function AcompanhamentoRtePage() {
     [colState, loadMore, toggleSort],
   );
 
-  const desktopColumnOrCollapsed = useCallback(
-    (key: RteColumnKey) => {
-      const collapsed =
-        (key === 'entregue' && entregueMinimized) ||
+  const desktopColumns = useMemo(
+    () => {
+      const isCollapsed = (key: RteColumnKey) =>
+        (key === 'recebido' && recebidoMinimized) ||
+        (key === 'em_transito' && emTransitoMinimized) ||
+        (key === 'na_unidade' && naUnidadeMinimized) ||
         (key === 'enc_sem_entrega' && encSemEntregaMinimized);
 
-      if (collapsed) {
-        const label = RTE_KANBAN_COLUMNS.find((c) => c.key === key)?.label ?? key;
-        const total = colState[key].total;
-        return (
-          <div
-            key={key}
-            className="flex h-full min-h-0 w-[48px] shrink-0 flex-col rounded-xl border border-gray-200 bg-white p-0.5 shadow"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                if (key === 'entregue') setEntregueMinimized(false);
-                if (key === 'enc_sem_entrega') setEncSemEntregaMinimized(false);
-              }}
-              className="flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-md px-0 py-1 transition-colors hover:bg-gray-50"
-              title={`${label} (${total}) — clique para expandir`}
-              aria-label={`Expandir coluna ${label}, ${total} itens`}
-            >
-              <h2 className="w-full text-center font-semibold text-gray-700">
-                <VerticalColumnTitle label={label} narrow />
-              </h2>
-            </button>
-          </div>
-        );
-      }
-      return columnBody(key, {
-        showMinimize: key === 'entregue' || key === 'enc_sem_entrega',
-      });
-    },
-    [entregueMinimized, encSemEntregaMinimized, colState, columnBody],
-  );
+      const collapsedKeys = RTE_KANBAN_COLUMNS.map(({ key }) => key).filter(isCollapsed);
+      const expandedKeys = RTE_KANBAN_COLUMNS.map(({ key }) => key).filter((key) => !isCollapsed(key));
 
-  const desktopColumns = useMemo(
-    () => (
-      <div className="flex w-full min-w-0 flex-1 gap-4 overflow-x-hidden pb-4">
-        {RTE_KANBAN_COLUMNS.map(({ key }) => desktopColumnOrCollapsed(key))}
-      </div>
-    ),
-    [desktopColumnOrCollapsed],
+      return (
+        <div className="flex w-full min-w-0 flex-1 gap-4 overflow-x-hidden pb-4">
+          {collapsedKeys.length > 0 ? (
+            <div className="flex h-full min-h-0 w-[48px] shrink-0 flex-col gap-2">
+              {collapsedKeys.map((key) => {
+                const label = RTE_KANBAN_COLUMNS.find((c) => c.key === key)?.label ?? key;
+                const total = colState[key].total;
+                return (
+                  <div
+                    key={key}
+                    className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white p-0.5 shadow"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (key === 'recebido') setRecebidoMinimized(false);
+                        if (key === 'em_transito') setEmTransitoMinimized(false);
+                        if (key === 'na_unidade') setNaUnidadeMinimized(false);
+                        if (key === 'enc_sem_entrega') setEncSemEntregaMinimized(false);
+                      }}
+                      className="flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center rounded-md px-0 py-1 transition-colors hover:bg-gray-50"
+                      title={`${label} (${total}) — clique para expandir`}
+                      aria-label={`Expandir coluna ${label}, ${total} itens`}
+                    >
+                      <h2 className="w-full text-center font-semibold text-gray-700">
+                        <VerticalColumnTitle label={label} narrow />
+                      </h2>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {expandedKeys.map((key) =>
+            columnBody(key, {
+              showMinimize:
+                key === 'recebido' ||
+                key === 'em_transito' ||
+                key === 'na_unidade' ||
+                key === 'enc_sem_entrega',
+            }),
+          )}
+        </div>
+      );
+    },
+    [
+      recebidoMinimized,
+      emTransitoMinimized,
+      naUnidadeMinimized,
+      encSemEntregaMinimized,
+      colState,
+      columnBody,
+    ],
   );
 
   return (

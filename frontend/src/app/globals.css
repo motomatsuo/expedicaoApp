@@ -10,7 +10,7 @@
   --text-secondary: #475569;
   --border-default: #e2e8f0;
   --portal-shell: #f5f6fa;
-  --sidebar-collapsed: 4.5rem;
+  --sidebar-collapsed: 4rem;
   --sidebar-expanded: 15rem;
 }
 
@@ -101,6 +101,24 @@ a {
   .sidebar.sidebar--collapsed:hover {
     width: var(--sidebar-expanded);
     box-shadow: 4px 0 24px rgba(15, 23, 42, 0.08);
+  }
+
+  .sidebar.sidebar--collapsed .sidebar-header {
+    padding: 0.75rem 0.25rem;
+  }
+
+  .sidebar.sidebar--collapsed .sidebar-nav {
+    padding: 0.75rem 0.25rem;
+  }
+
+  .sidebar.sidebar--collapsed .sidebar-footer {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .sidebar.sidebar--collapsed .sidebar-menu-item {
+    justify-content: center;
+    gap: 0;
+    padding: 0.625rem 0.5rem;
   }
 }
 

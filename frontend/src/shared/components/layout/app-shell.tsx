@@ -272,7 +272,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         {!isBipagemFullscreen ? (
           <header
-            className={`relative z-10 grid min-w-0 items-center gap-4 border-b border-gray-200 bg-white px-4 py-4 sm:px-6 ${hideGlobalSearch ? 'grid-cols-[1fr_auto]' : 'grid-cols-[1fr_auto_1fr]'}`}
+            className={`relative z-10 grid min-w-0 items-center gap-4 border-b border-gray-200 bg-white px-4 py-2.5 sm:px-6 ${hideGlobalSearch ? 'grid-cols-[1fr_auto]' : 'grid-cols-[1fr_auto_1fr]'}`}
           >
             <div className="flex min-w-0 items-center space-x-2 sm:space-x-4">
               <button
